@@ -5,15 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Video Donation Overlay</title>
 <style>
-body, html{margin:0;padding:0;width:100%;height:100%;background:transparent;}
-#player{position:absolute;inset:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
-#message{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:3em;font-weight:bold;color:white;text-shadow:0 0 10px black;}
-iframe, video{width:100%;height:100%;border:none;}
+body, html{margin:0;padding:0;width:100%;height:100%;background:transparent;overflow:hidden;}
+#overlay{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
+#msgOverlay{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);font-size:72px;font-weight:bold;color:#fff;text-align:center;display:none;text-shadow: 2px 2px 5px #000;}
+#player{width:80%;height:45%;background:#000;border-radius:10px;overflow:hidden;}
 </style>
 </head>
 <body>
-<div id="player"></div>
-<div id="message" style="display:none;"></div>
+<div id="overlay">
+    <div id="msgOverlay"></div>
+    <div id="player"></div>
+</div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -29,49 +31,63 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+const roomRef = db.ref('rooms/tobrothertoiden/queue');
 
-const player = document.getElementById('player');
-const msgDiv = document.getElementById('message');
+const msgOverlay = document.getElementById('msgOverlay');
+const playerDiv = document.getElementById('player');
 
 function escapeHtml(s){return (s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
 
-function playItem(item){
-    // 메시지 먼저 보여주기
-    msgDiv.textContent = escapeHtml(item.msg || item.name + " 님의 영상");
-    msgDiv.style.display = 'flex';
-    player.innerHTML='';
+// 새로 들어온 영상 감지
+roomRef.on('child_added', snapshot=>{
+    const item = snapshot.val();
+    // 메시지 먼저 표시
+    msgOverlay.textContent = `${item.name} : ${item.msg}`;
+    msgOverlay.style.display='block';
+    playerDiv.innerHTML='';
 
     setTimeout(()=>{
-        msgDiv.style.display='none';
-        player.innerHTML='';
-
+        msgOverlay.style.display='none';
+        // 영상 재생
         if(item.type==='youtube' && item.ytid){
             const iframe = document.createElement('iframe');
-            iframe.src = `https://www.youtube.com/embed/${item.ytid}?autoplay=1&mute=0`;
+            iframe.width='100%';
+            iframe.height='100%';
             iframe.allow='autoplay; encrypted-media';
-            player.appendChild(iframe);
-        }else if(item.type==='twitch'){
-            const iframe = document.createElement('iframe');
-            iframe.src = `https://clips.twitch.tv/embed?clip=${encodeURIComponent(new URL(item.url).pathname.split('/').pop())}&parent=${location.hostname}&autoplay=true&muted=false`;
-            iframe.allow='autoplay';
-            player.appendChild(iframe);
+            iframe.src = `https://www.youtube.com/embed/${item.ytid}?autoplay=1&mute=0`;
+            iframe.frameBorder='0';
+            playerDiv.appendChild(iframe);
         }else if(item.type==='html5'){
             const v = document.createElement('video');
-            v.src = item.url; v.autoplay=true; v.controls=true; v.muted=false; v.playsInline=true;
-            player.appendChild(v);
+            v.src=item.url;
+            v.autoplay=true;
+            v.controls=false;
+            v.muted=false;
+            v.style.width='100%';
+            v.style.height='100%';
+            v.playsInline=true;
+            playerDiv.appendChild(v);
+            v.onended=()=>{ snapshot.ref.remove(); };
+        }else if(item.type==='twitch'){
+            const clipID = new URL(item.url).pathname.split('/').pop();
+            const iframe = document.createElement('iframe');
+            iframe.width='100%';
+            iframe.height='100%';
+            iframe.allow='autoplay';
+            iframe.src = `https://clips.twitch.tv/embed?clip=${encodeURIComponent(clipID)}&parent=${location.hostname}&autoplay=true&muted=false`;
+            iframe.frameBorder='0';
+            playerDiv.appendChild(iframe);
         }else{
-            player.innerHTML='<div style="color:white;padding:20px;">지원되지 않는 영상</div>';
+            playerDiv.textContent='지원되지 않는 영상입니다.';
+            setTimeout(()=>{ snapshot.ref.remove(); },5000);
         }
+
+        // YouTube/Twitch iframe 강제로 30초 후 삭제
+        if(item.type==='youtube' || item.type==='twitch'){
+            setTimeout(()=>{ snapshot.ref.remove(); }, 30000);
+        }
+
     },5000);
-}
-
-// 실시간 overlay queue 구독
-db.ref('rooms/tobrothertoiden/overlay').limitToFirst(1).on('child_added', snap=>{
-    const item = snap.val();
-    playItem(item);
-
-    // 재생 후 자동 삭제
-    setTimeout(()=>{ snap.ref.remove(); }, 10000); // 10초 후 삭제, 영상 길이에 맞게 조정 가능
 });
 </script>
 </body>
