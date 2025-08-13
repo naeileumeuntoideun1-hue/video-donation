@@ -1,37 +1,15 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>영상 오버레이</title>
-  <link rel="stylesheet" href="common.css">
-  <style>
-    body {
-      background: transparent;
-      margin: 0;
-      overflow: hidden;
-    }
-    video {
-      width: 100%;
-      height: auto;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>영상 오버레이</title>
+<link rel="stylesheet" href="common.css">
 </head>
 <body>
-  <video id="videoPlayer" controls autoplay></video>
-
-  <script type="module">
-    import { listenQueue, removeFromQueue } from './common.js';
-
-    const params = new URLSearchParams(window.location.search);
-    const room = params.get('room') || 'default';
-    const player = document.getElementById('videoPlayer');
-
-    listenQueue(room, (key, url) => {
-      player.src = url;
-      player.play();
-      player.onended = () => removeFromQueue(room, key);
-    });
-  </script>
+<div id="overlay"></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"></script>
+<script src="common.js"></script>
 </body>
 </html>
