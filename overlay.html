@@ -3,13 +3,59 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>영상 오버레이</title>
-<link rel="stylesheet" href="common.css">
+<title>영상 도네이션 • 오버레이</title>
+<style>
+body { margin:0; background:transparent; overflow:hidden; font-family:sans-serif; }
+#player { position:absolute; inset:0; }
+</style>
 </head>
 <body>
-<div id="overlay"></div>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"></script>
-<script src="common.js"></script>
+<div id="player"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
+  authDomain: "toiden.firebaseapp.com",
+  databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "toiden",
+  storageBucket: "toiden.appspot.com",
+  messagingSenderId: "696461176231",
+  appId: "1:696461176231:web:2120f172e52eaba91a1a82"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const ROOM = "tobrothertoiden";
+const player = document.getElementById('player');
+
+let queue = [];
+let currentIndex = -1;
+let muted = true;
+
+function mountPlayer(item){
+  player.innerHTML='';
+  if(!item) return;
+  if(item.type==='youtube' && item.ytid){
+    const iframe = document.createElement('iframe');
+    iframe.src=`https://www.youtube.com/embed/${item.ytid}?autoplay=1&mute=${muted?1:0}`;
+    iframe.width='100%'; iframe.height='100%'; iframe.frameBorder='0'; iframe.allow='autoplay; encrypted-media';
+    player.appendChild(iframe);
+  } else if(item.type==='html5'){
+    const v = document.createElement('video'); v.src=item.url; v.autoplay=true; v.controls=true; v.muted=muted;
+    v.style.width='100%'; v.style.height='100%'; player.appendChild(v);
+  } else {
+    const d=document.createElement('div'); d.innerHTML='<b>지원되지 않는 항목</b>'; player.appendChild(d);
+  }
+}
+
+onValue(ref(db, `rooms/${ROOM}/queue`), snapshot=>{
+  const list = snapshot.val() || {};
+  queue = Object.values(list).sort((a,b)=>a.ts-b.ts);
+  if(queue.length>0 && currentIndex===-1){ currentIndex=0; mountPlayer(queue[currentIndex]); }
+});
+</script>
 </body>
 </html>
