@@ -1,23 +1,17 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Overlay</title>
-  <style>
-    body,html{margin:0;padding:0;width:100%;height:100%;background:transparent;}
-    .overlay{width:100vw;height:100vh;position:relative;overflow:hidden;}
-    .player{position:absolute;inset:0;}
-    .list{position:absolute;top:10px;right:10px;width:300px;}
-    .q-item{margin-bottom:6px;padding:6px;background:rgba(0,0,0,.5);border-radius:8px;color:#fff;}
-    .pill{padding:2px 6px;background:#4ade80;border-radius:4px;font-size:12px;}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>오버레이</title>
+<style>
+  body,html{margin:0;padding:0;background:transparent;overflow:hidden;height:100%;}
+  #player{width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
+  iframe,video{max-width:100%;max-height:100%;border:none;border-radius:8px;}
+</style>
 </head>
 <body>
-<div class="overlay">
-  <div id="player" class="player"></div>
-  <div id="ol-queue" class="list"></div>
-</div>
+<div id="player"></div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -37,64 +31,44 @@ firebase.initializeApp(firebaseConfig);
 
 const dbRef = firebase.database().ref(`rooms/${ROOM}/queue`);
 const $player = document.getElementById('player');
-const $q = document.getElementById('ol-queue');
 
 let queue = [];
-let currentIndex = -1;
-let muted = true;
+let currentIndex = 0;
 
 function mountPlayer(item){
-  $player.innerHTML = '';
+  $player.innerHTML='';
   if(!item) return;
   if(item.type==='youtube' && item.ytid){
-    const iframe = document.createElement('iframe');
-    iframe.width='100%'; iframe.height='100%'; iframe.allow='autoplay; encrypted-media';
-    iframe.src=`https://www.youtube.com/embed/${item.ytid}?autoplay=1&mute=${muted?1:0}`;
-    iframe.frameBorder='0';
+    const iframe=document.createElement('iframe');
+    iframe.src=`https://www.youtube.com/embed/${item.ytid}?autoplay=1&mute=1`;
+    iframe.allow='autoplay; encrypted-media';
+    iframe.width='100%'; iframe.height='100%';
     $player.appendChild(iframe);
   } else if(item.type==='twitch'){
-    const iframe = document.createElement('iframe');
-    iframe.width='100%'; iframe.height='100%'; iframe.allow='autoplay';
-    iframe.src=`https://clips.twitch.tv/embed?clip=${encodeURIComponent(new URL(item.url).pathname.split('/').pop())}&parent=${location.hostname}&autoplay=true&muted=${muted}`;
-    iframe.frameBorder='0';
+    const iframe=document.createElement('iframe');
+    iframe.src=`https://clips.twitch.tv/embed?clip=${encodeURIComponent(new URL(item.url).pathname.split('/').pop())}&parent=${location.hostname}&autoplay=true&muted=true`;
+    iframe.width='100%'; iframe.height='100%';
     $player.appendChild(iframe);
   } else if(item.type==='html5'){
-    const v = document.createElement('video'); 
-    v.src=item.url; v.autoplay=true; v.controls=true; v.muted=muted; v.style.width='100%'; v.style.height='100%';
-    v.playsInline=true; v.setAttribute('webkit-playsinline','');
+    const v=document.createElement('video');
+    v.src=item.url; v.autoplay=true; v.muted=true; v.controls=true; v.playsInline=true;
+    v.width='100%'; v.height='100%';
+    v.onended=playNext;
     $player.appendChild(v);
-  } else {
-    const d = document.createElement('div'); d.style.padding='20px'; d.innerHTML='<b>지원되지 않는 항목입니다.</b>';
-    $player.appendChild(d);
   }
 }
 
-function renderQueue(){
-  $q.innerHTML='';
-  queue.forEach((item, idx)=>{
-    const el = document.createElement('div');
-    el.className='q-item';
-    el.innerHTML = `<div>${item.name} ${idx===currentIndex?'<span class="pill">재생중</span>':''}</div>`;
-    $q.appendChild(el);
-  });
+function playNext(){
+  currentIndex++;
+  if(currentIndex>=queue.length){currentIndex=0;} // 반복 재생
+  mountPlayer(queue[currentIndex]);
 }
 
 dbRef.on('value', snap=>{
   const val = snap.val()||{};
-  const prevQueue = [...queue];
-  queue = Object.entries(val).map(([key, item])=>({...item,key}));
-  
-  if(currentIndex >= queue.length || !queue[currentIndex]){
-    currentIndex=-1;
-    $player.innerHTML='';
-  }
-  
-  renderQueue();
-  
-  if(queue.length && currentIndex===-1){
-    currentIndex=0;
-    mountPlayer(queue[currentIndex]);
-  }
+  queue = Object.values(val);
+  if(queue.length>0) mountPlayer(queue[currentIndex % queue.length]);
+  else $player.innerHTML=''; // 큐 비었으면 플레이어 제거
 });
 </script>
 </body>
