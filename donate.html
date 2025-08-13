@@ -1,41 +1,51 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Kick Video Donation - Donate</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>영상 후원</title>
 <style>
-/* 기본 스타일 생략, 기존 donate.css 그대로 사용 가능 */
+  body{margin:0;font-family:'Segoe UI',sans-serif;background:#f0f4f8;color:#333;}
+  header{background:#2563eb;color:white;padding:16px;text-align:center;font-size:1.5rem;}
+  main{max-width:600px;margin:30px auto;padding:20px;background:white;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
+  label{display:block;margin:12px 0 4px;font-weight:600;}
+  input,textarea{width:100%;padding:10px;border-radius:6px;border:1px solid #ccc;font-size:1rem;}
+  button{margin-top:16px;width:100%;padding:12px;background:#2563eb;color:white;font-weight:600;border:none;border-radius:8px;cursor:pointer;}
+  button:hover{background:#1e40af;}
+  .info{margin-top:12px;font-size:0.9rem;color:#555;}
+  .queue-list{margin-top:20px;}
+  .q-item{margin-bottom:10px;padding:10px;border-left:4px solid #2563eb;background:#f9fafb;border-radius:6px;}
+  .q-item b{color:#2563eb;}
 </style>
 </head>
 <body>
-<div class="shell" id="app">
-  <div class="card">
-    <header>
-      <h1>무료 영상 도네이션</h1>
-      <span class="badge" id="status-badge">로컬 데모</span>
-    </header>
-    <div class="content">
-      <div class="stack">
-        <label>닉네임</label>
-        <input id="name" placeholder="닉네임"/>
-        <label>영상 URL</label>
-        <input id="url" placeholder="YouTube/MP4/Twitch"/>
-        <label>메시지 (선택)</label>
-        <textarea id="msg" placeholder="하고 싶은 말"></textarea>
-        <div class="row">
-          <button class="btn" id="send">영상 보내기</button>
-        </div>
-        <div class="list" id="queue-list"></div>
-      </div>
-    </div>
+<header>영상 후원 페이지</header>
+<main>
+  <form id="donate-form">
+    <label for="name">닉네임</label>
+    <input type="text" id="name" placeholder="홍길동 / 익명 가능" required>
+
+    <label for="url">영상 URL</label>
+    <input type="url" id="url" placeholder="YouTube / Twitch / mp4 URL" required>
+
+    <label for="msg">메시지</label>
+    <textarea id="msg" rows="3" placeholder="응원 메시지를 입력하세요"></textarea>
+
+    <button type="submit">전송</button>
+  </form>
+  
+  <div class="info">
+    ※ 제출하신 영상은 관리자 검토 후 오버레이에 표시됩니다.
   </div>
-</div>
+
+  <div class="queue-list" id="queue-list"></div>
+</main>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
 <script>
-const ROOM = "tobrothertoiden"; // Kick 닉네임 기반 룸
+const ROOM = 'tobrothertoiden';
 const firebaseConfig = {
   apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
   authDomain: "toiden.firebaseapp.com",
@@ -47,46 +57,46 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 
-function classifyURL(url){
-  try{
-    const u = new URL(url);
-    const host = u.host.replace('www.','');
-    if(/youtube\.com|youtu\.be/.test(host)) return {type:'youtube', id:extractYouTubeId(u)};
-    if(/clips\.twitch\.tv/.test(host) || /twitch\.tv/.test(host)) return {type:'twitch', url};
-    if(/\.(mp4|webm|ogg)$/i.test(u.pathname)) return {type:'html5', url};
-    return {type:'unknown'};
-  }catch(e){ return {type:'invalid'}; }
-}
-function extractYouTubeId(u){
-  if(u.hostname==='youtu.be') return u.pathname.slice(1);
-  return new URLSearchParams(u.search).get('v');
+const dbRef = firebase.database().ref(`rooms/${ROOM}/queue`);
+const form = document.getElementById('donate-form');
+const $queue = document.getElementById('queue-list');
+
+function renderQueue(queue){
+  $queue.innerHTML='';
+  queue.forEach(item=>{
+    const div = document.createElement('div');
+    div.className='q-item';
+    div.innerHTML=`<b>${item.name}</b><br>${item.url}<br>${item.msg||''}`;
+    $queue.appendChild(div);
+  });
 }
 
-document.getElementById('send').addEventListener('click', ()=>{
-  const name = document.getElementById('name').value || '익명';
-  const url = document.getElementById('url').value.trim();
-  const msg = document.getElementById('msg').value.slice(0,140);
-  const c = classifyURL(url);
-  if(c.type==='invalid' || c.type==='unknown') return alert('지원하지 않는 URL입니다.');
-  const newRef = firebase.database().ref(`rooms/${ROOM}/queue`).push();
-  newRef.set({
-    name, url, type:c.type, ytid:c.id||null, msg, ts:Date.now(), id:newRef.key
-  });
-  document.getElementById('url').value='';
-  document.getElementById('msg').value='';
+dbRef.on('value', snap=>{
+  const val = snap.val()||{};
+  const queue = Object.values(val);
+  renderQueue(queue);
 });
 
-// 큐 미리보기
-firebase.database().ref(`rooms/${ROOM}/queue`).on('value', snap=>{
-  const list = snap.val()||{};
-  const $list = document.getElementById('queue-list');
-  $list.innerHTML='';
-  Object.values(list).forEach(item=>{
-    const el = document.createElement('div');
-    el.className='q-item';
-    el.innerHTML=`${item.name} (${item.type}): ${item.url} ${item.msg? '<div>'+item.msg+'</div>':''}`;
-    $list.appendChild(el);
-  });
+form.addEventListener('submit', e=>{
+  e.preventDefault();
+  const name = document.getElementById('name').value.trim() || '익명';
+  const url = document.getElementById('url').value.trim();
+  const msg  = document.getElementById('msg').value.trim();
+  if(!url) return alert('URL을 입력하세요.');
+
+  let type='html5', ytid=null;
+  if(url.includes('youtube.com') || url.includes('youtu.be')){
+    type='youtube';
+    const m = url.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/);
+    if(m) ytid=m[1];
+  } else if(url.includes('twitch.tv')){
+    type='twitch';
+  }
+
+  const ts = Date.now();
+  dbRef.push({name,url,type,ytid,msg,ts})
+    .then(()=>form.reset())
+    .catch(err=>alert('오류 발생: '+err.message));
 });
 </script>
 </body>
