@@ -3,19 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Video Overlay</title>
+<title>Video Donation Overlay</title>
 <style>
-body{ margin:0; background:transparent; color:white; overflow:hidden; font-family:sans-serif; }
-#overlay { position:relative; width:100%; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; }
-#message{ font-size:3em; background:rgba(0,0,0,0.6); padding:12px 24px; border-radius:12px; opacity:1; transition:opacity 0.5s; }
-#video-player{ max-width:90%; max-height:80%; display:none; border:3px solid white; border-radius:12px; }
+body, html{margin:0;padding:0;width:100%;height:100%;background:transparent;}
+#player{position:absolute;inset:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
+#message{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:3em;font-weight:bold;color:white;text-shadow:0 0 10px black;}
+iframe, video{width:100%;height:100%;border:none;}
 </style>
 </head>
 <body>
-<div id="overlay">
-  <div id="message"></div>
-  <iframe id="video-player" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
-</div>
+<div id="player"></div>
+<div id="message" style="display:none;"></div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -32,37 +30,48 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-const ROOM = "tobrothertoiden";
-const overlayRef = db.ref(`rooms/${ROOM}/overlay`);
-const messageDiv = document.getElementById("message");
-const videoFrame = document.getElementById("video-player");
+const player = document.getElementById('player');
+const msgDiv = document.getElementById('message');
 
-overlayRef.on("value", snap => {
-  const item = snap.val();
-  if(!item) return;
+function escapeHtml(s){return (s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
 
-  // 1️⃣ 메시지 먼저
-  messageDiv.textContent = item.msg || '';
-  messageDiv.style.opacity = "1";
-  videoFrame.style.display = "none";
-  videoFrame.src = "";
+function playItem(item){
+    // 메시지 먼저 보여주기
+    msgDiv.textContent = escapeHtml(item.msg || item.name + " 님의 영상");
+    msgDiv.style.display = 'flex';
+    player.innerHTML='';
 
-  // 2️⃣ 5초 후 영상 재생
-  setTimeout(()=>{
-    messageDiv.style.opacity = "0";
     setTimeout(()=>{
-      messageDiv.style.display = "none";
-      videoFrame.style.display = "block";
+        msgDiv.style.display='none';
+        player.innerHTML='';
 
-      if(item.type==="youtube" && item.ytid){
-        // 유튜브 자동 재생, 음소거 해제
-        videoFrame.src = `https://www.youtube.com/embed/${item.ytid}?autoplay=1&mute=0&enablejsapi=1`;
-      } else {
-        // html5 영상
-        videoFrame.src = item.url;
-      }
-    },500);
-  },5000);
+        if(item.type==='youtube' && item.ytid){
+            const iframe = document.createElement('iframe');
+            iframe.src = `https://www.youtube.com/embed/${item.ytid}?autoplay=1&mute=0`;
+            iframe.allow='autoplay; encrypted-media';
+            player.appendChild(iframe);
+        }else if(item.type==='twitch'){
+            const iframe = document.createElement('iframe');
+            iframe.src = `https://clips.twitch.tv/embed?clip=${encodeURIComponent(new URL(item.url).pathname.split('/').pop())}&parent=${location.hostname}&autoplay=true&muted=false`;
+            iframe.allow='autoplay';
+            player.appendChild(iframe);
+        }else if(item.type==='html5'){
+            const v = document.createElement('video');
+            v.src = item.url; v.autoplay=true; v.controls=true; v.muted=false; v.playsInline=true;
+            player.appendChild(v);
+        }else{
+            player.innerHTML='<div style="color:white;padding:20px;">지원되지 않는 영상</div>';
+        }
+    },5000);
+}
+
+// 실시간 overlay queue 구독
+db.ref('rooms/tobrothertoiden/overlay').limitToFirst(1).on('child_added', snap=>{
+    const item = snap.val();
+    playItem(item);
+
+    // 재생 후 자동 삭제
+    setTimeout(()=>{ snap.ref.remove(); }, 10000); // 10초 후 삭제, 영상 길이에 맞게 조정 가능
 });
 </script>
 </body>
