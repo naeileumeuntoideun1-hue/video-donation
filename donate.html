@@ -85,7 +85,7 @@
   <input type="text" id="name" placeholder="이름 (선택)">
   <input type="text" id="url" placeholder="영상 링크 (YouTube/Twitch/MP4)">
   <textarea id="msg" rows="3" placeholder="메시지 (선택)"></textarea>
-  <button onclick="sendDonation()">후원 보내기</button>
+  <button onclick="sendDonation()">영상 보내기</button>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -107,7 +107,7 @@
     const name = document.getElementById('name').value || '익명';
     const url = document.getElementById('url').value.trim();
     const msg = document.getElementById('msg').value.trim();
-    if (!url) { alert("영상 링크를 입력해주세요."); return; }
+    if (!url) { alert("영상 링크를 입력해주세요 [숏폼 안됨]"); return; }
 
     const roomRef = db.ref('rooms/tobrothertoiden/queue');
     const newItemRef = roomRef.push();
