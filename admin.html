@@ -1,30 +1,31 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>관리자 페이지</title>
-<style>
-  body{margin:0;font-family:'Segoe UI',sans-serif;background:#f0f4f8;color:#333;}
-  header{background:#ef4444;color:white;padding:16px;text-align:center;font-size:1.5rem;}
-  main{max-width:800px;margin:30px auto;padding:20px;background:white;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
-  .q-item{margin-bottom:12px;padding:12px;border-left:4px solid #ef4444;background:#f9fafb;border-radius:6px;display:flex;justify-content:space-between;align-items:center;}
-  .q-item div{max-width:70%;}
-  button{padding:6px 12px;margin-left:6px;border:none;border-radius:6px;background:#ef4444;color:white;cursor:pointer;}
-  button:hover{background:#b91c1c;}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Donation 관리자</title>
+  <style>
+    body { font-family: sans-serif; background:#0b0f14; color:#e6edf3; margin:0; padding:0; }
+    .shell { max-width:960px; margin:20px auto; padding:0 10px; }
+    h1 { text-align:center; margin-bottom:20px; }
+    .list { display:flex; flex-direction:column; gap:10px; }
+    .q-item { display:flex; flex-direction:column; padding:12px; border-radius:12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06); }
+    .q-item .title { font-weight:700; }
+    .q-item .actions { margin-top:6px; display:flex; gap:8px; }
+    button { padding:6px 12px; border:none; border-radius:8px; cursor:pointer; font-weight:600; }
+    .btn-play { background: linear-gradient(135deg,#22c55e,#16a34a); color:#05120a; }
+    .btn-delete { background: linear-gradient(135deg,#ef4444,#dc2626); color:#130607; }
+  </style>
 </head>
 <body>
-<header>관리자 페이지</header>
-<main>
-  <div id="queue-list"></div>
-</main>
+<div class="shell">
+  <h1>Video Donation 관리자</h1>
+  <div class="list" id="admin-queue"></div>
+</div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
 <script>
-const ROOM = 'tobrothertoiden';
 const firebaseConfig = {
   apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
   authDomain: "toiden.firebaseapp.com",
@@ -35,27 +36,51 @@ const firebaseConfig = {
   appId: "1:696461176231:web:2120f172e52eaba91a1a82"
 };
 firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-const dbRef = firebase.database().ref(`rooms/${ROOM}/queue`);
-const $queue = document.getElementById('queue-list');
+const ROOM = "tobrothertoiden";
+const queueRef = db.ref(`rooms/${ROOM}/queue`);
+const $list = document.getElementById("admin-queue");
 
-function renderQueue(queue){
-  $queue.innerHTML='';
-  Object.entries(queue).forEach(([key,item])=>{
-    const div = document.createElement('div');
-    div.className='q-item';
-    div.innerHTML=`<div><b>${item.name}</b><br>${item.url}<br>${item.msg||''}</div>`;
-    const btnDel = document.createElement('button');
-    btnDel.textContent='삭제';
-    btnDel.onclick=()=> dbRef.child(key).remove();
-    div.appendChild(btnDel);
-    $queue.appendChild(div);
+function escapeHtml(s){ return (s||'').replace(/[&<>"]+/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+
+function renderQueue(snapshot){
+  const data = snapshot.val() || {};
+  $list.innerHTML = '';
+  Object.entries(data).sort((a,b)=> (a[1].ts||0)-(b[1].ts||0)).forEach(([key,item])=>{
+    const el = document.createElement("div");
+    el.className="q-item";
+    el.innerHTML = `
+      <div class="title">${escapeHtml(item.name)} (${item.type})</div>
+      <div>${escapeHtml(item.url)}</div>
+      ${item.msg? `<div>💬 ${escapeHtml(item.msg)}</div>`: ''}
+      <div class="actions">
+        <button class="btn-play" data-key="${key}">영상 송출</button>
+        <button class="btn-delete" data-key="${key}">삭제</button>
+      </div>
+    `;
+    $list.appendChild(el);
   });
 }
+queueRef.on("value", renderQueue);
 
-dbRef.on('value', snap=>{
-  const val = snap.val()||{};
-  renderQueue(val);
+$list.addEventListener("click", async (e)=>{
+  const playBtn = e.target.closest(".btn-play");
+  const delBtn  = e.target.closest(".btn-delete");
+  if(playBtn){
+    const key = playBtn.dataset.key;
+    const snapshot = await queueRef.child(key).once("value");
+    const item = snapshot.val();
+    if(item){
+      const overlayRef = db.ref(`rooms/${ROOM}/overlay`);
+      await overlayRef.set({...item, ts:Date.now()});
+      await queueRef.child(key).remove();
+    }
+  }
+  if(delBtn){
+    const key = delBtn.dataset.key;
+    if(confirm("정말 삭제하시겠습니까?")) await queueRef.child(key).remove();
+  }
 });
 </script>
 </body>
