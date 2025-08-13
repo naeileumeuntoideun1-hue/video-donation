@@ -1,162 +1,99 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <title>Admin Panel</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Google Fonts Roboto -->
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <style>
-    body {
-      font-family: 'Roboto', sans-serif;
-      margin: 0;
-      padding: 0;
-      background: linear-gradient(135deg, #74ebd5, #ACB6E5);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    .container {
-      background: #fff;
-      padding: 30px;
-      margin: 40px;
-      border-radius: 16px;
-      box-shadow: 0 10px 20px rgba(0,0,0,0.15);
-      width: 100%;
-      max-width: 800px;
-    }
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-      color: #333;
-      font-weight: 700;
-      font-size: 24px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-    }
-    th, td {
-      padding: 12px 10px;
-      border-bottom: 1px solid #ddd;
-      text-align: left;
-    }
-    th {
-      background-color: #f5f5f5;
-    }
-    button {
-      padding: 8px 12px;
-      background-color: #007bff;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      cursor: pointer;
-      transition: background-color 0.2s ease;
-    }
-    button:hover {
-      background-color: #0056b3;
-    }
-    /* 반응형 조정 */
-    @media (max-width: 600px) {
-      .container {
-        margin: 20px;
-        padding: 20px;
-      }
-      h1 { font-size: 20px; }
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>Admin Panel</h1>
-    <table id="queueTable">
-      <thead>
-        <tr>
-          <th>이름</th>
-          <th>영상 링크</th>
-          <th>메세지</th>
-          <th>송출</th>
-          <th>삭제</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+import { getDatabase, ref, get, onValue, set, remove } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getDatabase, ref, onValue, set, remove } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
+  authDomain: "toiden.firebaseapp.com",
+  databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "toiden",
+  storageBucket: "toiden.firebasestorage.app",
+  messagingSenderId: "696461176231",
+  appId: "1:696461176231:web:2120f172e52eaba91a1a82"
+};
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const room = "tobrothertoiden";
+const tbody = document.querySelector("#queueTable tbody");
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
-      authDomain: "toiden.firebaseapp.com",
-      databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "toiden",
-      storageBucket: "toiden.firebasestorage.app",
-      messagingSenderId: "696461176231",
-      appId: "1:696461176231:web:2120f172e52eaba91a1a82"
-    };
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const room = "tobrothertoiden";
-    const tbody = document.querySelector("#queueTable tbody");
+// 비밀번호 확인 로직
+async function checkPassword() {
+  const passRef = ref(db, `rooms/${room}/adminPass`);
+  const snap = await get(passRef);
+  const correctPass = snap.exists() ? snap.val() : null;
+  
+  if (!correctPass) {
+    alert("서버에 비밀번호가 설정되어 있지 않습니다.");
+    return false;
+  }
 
-    // 큐 감시 및 테이블 갱신
-    const queueRef = ref(db, `rooms/${room}/queue`);
-    onValue(queueRef, snapshot => {
-      const data = snapshot.val() || {};
-      tbody.innerHTML = "";
-      Object.entries(data).forEach(([key, video]) => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${video.name}</td>
-          <td><a href="${video.url}" target="_blank">${video.url}</a></td>
-          <td>${video.msg}</td>
-          <td><button data-key="${key}" class="playBtn">송출</button></td>
-          <td><button data-key="${key}" class="delBtn">삭제</button></td>
-        `;
-        tbody.appendChild(tr);
+  const input = prompt("관리자 비밀번호를 입력하세요:");
+  if (input === correctPass) {
+    return true;
+  } else {
+    alert("잘못된 비밀번호입니다.");
+    return false;
+  }
+}
+
+// 관리자 페이지 초기화
+async function initAdmin() {
+  const allowed = await checkPassword();
+  if (!allowed) {
+    document.body.innerHTML = "<h2 style='text-align:center;color:red;'>접근 거부</h2>";
+    return;
+  }
+
+  // 큐 감시 및 테이블 갱신
+  const queueRef = ref(db, `rooms/${room}/queue`);
+  onValue(queueRef, snapshot => {
+    const data = snapshot.val() || {};
+    tbody.innerHTML = "";
+    Object.entries(data).forEach(([key, video]) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${video.name}</td>
+        <td><a href="${video.url}" target="_blank">${video.url}</a></td>
+        <td>${video.msg}</td>
+        <td><button data-key="${key}" class="playBtn">송출</button></td>
+        <td><button data-key="${key}" class="delBtn">삭제</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  });
+
+  // 송출 버튼
+  tbody.addEventListener("click", e => {
+    if (e.target.classList.contains("playBtn")) {
+      const key = e.target.dataset.key;
+      get(ref(db, `rooms/${room}/queue/${key}`)).then(snapshot => {
+        const video = snapshot.val();
+        if (video) {
+          set(ref(db, `rooms/${room}/currentVideo`), video);
+        }
       });
-    });
+    }
+  });
 
-    // 송출 버튼 클릭 시 현재 재생 설정
-    tbody.addEventListener("click", e => {
-      if (e.target.classList.contains("playBtn")) {
-        const key = e.target.dataset.key;
-        const videoRef = ref(db, `rooms/${room}/queue/${key}`);
-        onValue(videoRef, snapshot => {
-          const video = snapshot.val();
-          if (video) {
-            set(ref(db, `rooms/${room}/currentVideo`), video);
-          }
-        }, { once: true });
-      }
-    });
+  // 삭제 버튼
+  tbody.addEventListener("click", e => {
+    if (e.target.classList.contains("delBtn")) {
+      const key = e.target.dataset.key;
+      get(ref(db, `rooms/${room}/queue/${key}`)).then(snapshot => {
+        const video = snapshot.val();
+        if (video) {
+          remove(ref(db, `rooms/${room}/queue/${key}`));
+          get(ref(db, `rooms/${room}/currentVideo`)).then(snapCur => {
+            const current = snapCur.val();
+            if (current && current.url === video.url) {
+              remove(ref(db, `rooms/${room}/currentVideo`));
+            }
+          });
+        }
+      });
+    }
+  });
+}
 
-    // 삭제 버튼 클릭 시 큐에서 제거하고, 재생 중인 경우 currentVideo에서 제거
-    tbody.addEventListener("click", e => {
-      if (e.target.classList.contains("delBtn")) {
-        const key = e.target.dataset.key;
-        const videoRef = ref(db, `rooms/${room}/queue/${key}`);
-        onValue(videoRef, snapshot => {
-          const video = snapshot.val();
-          if (video) {
-            // 큐 항목 제거
-            remove(videoRef);
-            // 현재 재생 중인 영상과 URL이 같으면 currentVideo에서도 제거
-            onValue(ref(db, `rooms/${room}/currentVideo`), snapCur => {
-              const current = snapCur.val();
-              if (current && current.url === video.url) {
-                remove(ref(db, `rooms/${room}/currentVideo`));
-              }
-            }, { once: true });
-          }
-        }, { once: true });
-      }
-    });
-  </script>
-</body>
-</html>
+initAdmin();
+</script>
