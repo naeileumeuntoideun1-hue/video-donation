@@ -68,6 +68,18 @@
     background-color: #0056b3;
   }
 
+  /* 도움말 버튼 스타일 */
+  .help-btn {
+    background-color: #6c757d;
+    font-size: 14px;
+    padding: 10px;
+    margin-top: 10px;
+  }
+
+  .help-btn:hover {
+    background-color: #5a6268;
+  }
+
   @media (max-width: 500px) {
     .container {
       padding: 30px 20px;
@@ -85,6 +97,8 @@
   <input type="text" id="url" placeholder="YouTube 영상 링크(숏폼가능)">
   <textarea id="msg" rows="3" placeholder="메시지 (선택)"></textarea>
   <button onclick="sendDonation()">영상 보내기</button>
+  <!-- 도움말 버튼 -->
+  <button class="help-btn" onclick="goHelp()">도움말</button>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -131,6 +145,11 @@
       document.getElementById('url').value='';
       document.getElementById('msg').value='';
     });
+  }
+
+  // 도움말 페이지로 이동
+  function goHelp() {
+    window.location.href = "https://example.com/help"; // 여기를 원하는 링크로 변경
   }
 </script>
 </body>
