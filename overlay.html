@@ -2,42 +2,84 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Video Donation Overlay</title>
+<title>Video Overlay</title>
 <style>
-  body{margin:0;background:transparent;display:flex;align-items:center;justify-content:center;overflow:hidden;height:100vh;}
-  #player{width:100%;height:100%;position:relative;}
-  iframe, video{width:100%;height:100%;border:none;}
+    body, html { margin: 0; padding: 0; background: transparent; overflow: hidden; width: 100%; height: 100%; }
+    #videoContainer { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
 </style>
 </head>
 <body>
-<div id="player"></div>
-<script>
-window.addEventListener('message', e=>{
-  const msg = e.data;
-  if(msg.action==='play' && msg.item){
-    const item = msg.item;
-    const $player = document.getElementById('player');
-    $player.innerHTML='';
-    if(item.type==='youtube' && item.ytid){
-      const iframe=document.createElement('iframe');
-      iframe.src = `https://www.youtube.com/embed/${item.ytid}?autoplay=1&mute=0`;
-      iframe.allow='autoplay; encrypted-media';
-      $player.appendChild(iframe);
-    } else if(item.type==='html5'){
-      const v=document.createElement('video');
-      v.src=item.url; v.autoplay=true; v.controls=true; v.muted=false; v.playsInline=true;
-      $player.appendChild(v);
-    } else if(item.type==='twitch'){
-      const iframe=document.createElement('iframe');
-      const clipId = new URL(item.url).pathname.split('/').pop();
-      iframe.src = `https://clips.twitch.tv/embed?clip=${clipId}&parent=${location.hostname}&autoplay=true&muted=false`;
-      iframe.allow='autoplay';
-      $player.appendChild(iframe);
-    } else {
-      $player.textContent='지원되지 않는 영상입니다.';
+<div id="videoContainer"></div>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
+  authDomain: "toiden.firebaseapp.com",
+  databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "toiden",
+  storageBucket: "toiden.firebasestorage.app",
+  messagingSenderId: "696461176231",
+  appId: "1:696461176231:web:2120f172e52eaba91a1a82"
+};
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const roomName = "tobrothertoiden";
+
+let ytPlayer = null;
+let currentKey = null;
+
+const videoContainer = document.getElementById('videoContainer');
+
+function createYouTubePlayer(ytid) {
+    videoContainer.innerHTML = "";
+    const div = document.createElement('div');
+    div.id = 'ytPlayer';
+    videoContainer.appendChild(div);
+
+    ytPlayer = new YT.Player('ytPlayer', {
+        videoId: ytid,
+        playerVars: { autoplay: 1, controls: 1 },
+        events: {
+            'onReady': (event) => { event.target.playVideo(); },
+        }
+    });
+}
+
+function playVideo(videoData) {
+    videoContainer.innerHTML = "";
+    if(videoData.type === "youtube") {
+        createYouTubePlayer(videoData.ytid);
+    } else if(videoData.type === "html5") {
+        const vid = document.createElement("video");
+        vid.src = videoData.url;
+        vid.autoplay = true;
+        vid.controls = false;
+        vid.muted = false; // OBS 브라우저에서도 음소거 해제
+        vid.style.width = "100%";
+        vid.style.height = "100%";
+        videoContainer.appendChild(vid);
+    } else if(videoData.type === "twitch") {
+        const clipID = videoData.url.split("/").pop();
+        const iframe = document.createElement("iframe");
+        iframe.src = `https://clips.twitch.tv/embed?clip=${clipID}&autoplay=true`;
+        iframe.allow = "autoplay; fullscreen";
+        iframe.style.width = "100%";
+        iframe.style.height = "100%";
+        videoContainer.appendChild(iframe);
     }
-  }
+}
+
+// 관리자에서 송출 버튼 클릭 시 current 노드에 기록
+onValue(ref(db, `rooms/${roomName}/current`), snapshot => {
+    const data = snapshot.val();
+    if(data && data.key !== currentKey) {
+        currentKey = data.key;
+        playVideo(data.video);
+    }
 });
 </script>
 </body>
