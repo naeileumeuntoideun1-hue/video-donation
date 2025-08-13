@@ -1,61 +1,77 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>관리자 페이지</title>
-<style>
-body{font-family:sans-serif;background:#f0f0f0;padding:20px;}
-table{width:100%;border-collapse:collapse;}
-th,td{border:1px solid #ccc;padding:8px;text-align:left;}
-button{padding:5px 10px;margin:2px;cursor:pointer;}
-button.delete{background:#dc3545;color:#fff;border:none;}
-button.play{background:#28a745;color:#fff;border:none;}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Donation Admin</title>
+  <style>
+    body{font-family:sans-serif;background:#0b0f14;color:#e6edf3;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;}
+    h1{margin:20px;}
+    .list{width:90%;max-width:900px;margin:0 auto;}
+    .item{display:flex;justify-content:space-between;background:rgba(17,24,38,.8);padding:12px;margin-bottom:8px;border-radius:12px;align-items:center;}
+    .item div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .btn{padding:6px 12px;border:none;border-radius:8px;cursor:pointer;margin-left:4px;}
+    .btn.play{background:#4ade80;color:#05120a;}
+    .btn.remove{background:#ef4444;color:#fff;}
+  </style>
 </head>
 <body>
-<h2>영상 관리</h2>
-<table>
-<thead><tr><th>이름</th><th>URL</th><th>타입</th><th>메시지</th><th>액션</th></tr></thead>
-<tbody id="list"></tbody>
-</table>
+<h1>관리자 페이지 - Video Donation</h1>
+<div class="list" id="queue"></div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script>
 const firebaseConfig = {
-  apiKey:"AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
-  authDomain:"toiden.firebaseapp.com",
-  databaseURL:"https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId:"toiden",
-  storageBucket:"toiden.firebasestorage.app",
-  messagingSenderId:"696461176231",
-  appId:"1:696461176231:web:2120f172e52eaba91a1a82"
+  apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
+  authDomain: "toiden.firebaseapp.com",
+  databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "toiden",
+  storageBucket: "toiden.firebasestorage.app",
+  messagingSenderId: "696461176231",
+  appId: "1:696461176231:web:2120f172e52eaba91a1a82"
 };
 firebase.initializeApp(firebaseConfig);
-const db = firebase.database().ref('rooms/tobrothertoiden/queue');
-const $list=document.getElementById('list');
 
-function renderList(data){
-  $list.innerHTML='';
-  Object.keys(data).forEach(k=>{
-    const item=data[k];
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${item.name}</td>
-<td>${item.url}</td>
-<td>${item.type}</td>
-<td>${item.msg}</td>
-<td>
-<button class="play">송출</button>
-<button class="delete">삭제</button>
-</td>`;
-    tr.querySelector('.delete').onclick=()=>db.child(k).remove();
-    tr.querySelector('.play').onclick=()=>db.child(k).update({play:true});
-    $list.appendChild(tr);
+const ROOM = 'tobrothertoiden';
+const dbRef = firebase.database().ref(`/rooms/${ROOM}/queue`);
+const overlayWindow = window.open('/video-donation/overlay.html', 'overlay', 'width=800,height=600');
+
+function renderQueue(list){
+  const $q = document.getElementById('queue');
+  $q.innerHTML='';
+  Object.entries(list).forEach(([key,item])=>{
+    const div=document.createElement('div');
+    div.className='item';
+    div.innerHTML = `
+      <div>${item.name} (${item.type}) - ${item.url}</div>
+      <div>
+        <button class="btn play" data-key="${key}">송출</button>
+        <button class="btn remove" data-key="${key}">삭제</button>
+      </div>`;
+    $q.appendChild(div);
   });
 }
 
-db.on('value',snap=>renderList(snap.val()||{}));
+dbRef.on('value', snap=>{
+  const data = snap.val()||{};
+  renderQueue(data);
+});
+
+document.getElementById('queue').addEventListener('click', e=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  const key = btn.dataset.key;
+  if(btn.classList.contains('play')){
+    dbRef.child(key).once('value').then(snap=>{
+      const data = snap.val();
+      if(data && overlayWindow) overlayWindow.postMessage({action:'play', item:data}, '*');
+    });
+  }
+  if(btn.classList.contains('remove')){
+    if(confirm('정말 삭제하시겠습니까?')) dbRef.child(key).remove();
+  }
+});
 </script>
 </body>
 </html>
