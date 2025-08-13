@@ -81,7 +81,7 @@
 </head>
 <body>
 <div class="container">
-  <h1>🎬 영상 후원하기</h1>
+  <h1>🎬 토이든 방송 무료 영상도네</h1>
   <input type="text" id="name" placeholder="이름 (선택)">
   <input type="text" id="url" placeholder="영상 링크 (YouTube/Twitch/MP4)">
   <textarea id="msg" rows="3" placeholder="메시지 (선택)"></textarea>
@@ -120,7 +120,7 @@
       msg: msg,
       ts: Date.now()
     }).then(() => {
-      alert("후원이 전송되었습니다!");
+      alert("후원이 전송되었습니다!, 반복적인 영상 제출은 무시당할 수 있습니다.");
       document.getElementById('name').value='';
       document.getElementById('url').value='';
       document.getElementById('msg').value='';
