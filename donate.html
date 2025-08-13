@@ -1,123 +1,137 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>토브라더.com</title>
-  <!-- Google Fonts Roboto -->
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <style>
-    body {
-      font-family: 'Roboto', sans-serif;
-      margin: 0;
-      padding: 0;
-      background: linear-gradient(135deg, #74ebd5, #ACB6E5);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>토브라더.com</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+  body {
+    font-family: 'Roboto', sans-serif;
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(135deg, #74ebd5, #ACB6E5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+
+  .container {
+    background: #fff;
+    padding: 40px 30px;
+    border-radius: 20px;
+    box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+    width: 100%;
+    max-width: 480px;
+    text-align: center;
+  }
+
+  h1 {
+    margin-bottom: 30px;
+    font-weight: 700;
+    color: #333;
+    font-size: 28px;
+  }
+
+  input, textarea {
+    width: 100%;
+    padding: 14px 12px;
+    margin: 10px 0;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    font-size: 16px;
+    outline: none;
+    transition: 0.2s;
+  }
+
+  input:focus, textarea:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 8px rgba(0,123,255,0.3);
+  }
+
+  button {
+    width: 100%;
+    padding: 16px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 18px;
+    cursor: pointer;
+    margin-top: 15px;
+    transition: 0.3s;
+  }
+
+  button:hover {
+    background-color: #0056b3;
+  }
+
+  /* 반응형 */
+  @media (max-width: 500px) {
     .container {
-      background: #fff;
-      padding: 40px 30px;
-      border-radius: 20px;
-      box-shadow: 0 15px 30px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 480px;
-      text-align: center;
+      padding: 30px 20px;
     }
     h1 {
-      margin-bottom: 30px;
-      font-weight: 700;
-      color: #333;
-      font-size: 28px;
+      font-size: 24px;
     }
-    input, textarea {
-      width: 100%;
-      padding: 14px 12px;
-      margin: 10px 0;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      font-size: 16px;
-      outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    input:focus, textarea:focus {
-      border-color: #007bff;
-      box-shadow: 0 0 8px rgba(0,123,255,0.3);
-    }
-    button {
-      width: 100%;
-      padding: 16px;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      border-radius: 12px;
-      font-size: 18px;
-      cursor: pointer;
-      margin-top: 15px;
-      transition: background-color 0.3s;
-    }
-    button:hover {
-      background-color: #0056b3;
-    }
-    @media (max-width: 500px) {
-      .container {
-        padding: 30px 20px;
-      }
-      h1 {
-        font-size: 24px;
-      }
-    }
-  </style>
+  }
+</style>
 </head>
 <body>
-  <div class="container">
-    <h1>🎬 토이든 방송 무료 영상도네</h1>
-    <input type="text" id="name" placeholder="이름 (선택)">
-    <input type="text" id="url" placeholder="영상 링크 (YouTube / 롱폼 숏폼 둘다 가능)">
-    <textarea id="msg" rows="3" placeholder="메시지 (선택)"></textarea>
-    <button onclick="sendDonation()">영상 보내기</button>
-  </div>
+<div class="container">
+  <h1>🎬 토이든 방송 무료 영상도네</h1>
+  <input type="text" id="name" placeholder="이름 (선택)">
+  <input type="text" id="url" placeholder="YouTube 영상 링크만 가능">
+  <textarea id="msg" rows="3" placeholder="메시지 (선택)"></textarea>
+  <button onclick="sendDonation()">영상 보내기</button>
+</div>
 
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
-      authDomain: "toiden.firebaseapp.com",
-      databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "toiden",
-      storageBucket: "toiden.firebasestorage.app",
-      messagingSenderId: "696461176231",
-      appId: "1:696461176231:web:2120f172e52eaba91a1a82"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
+    authDomain: "toiden.firebaseapp.com",
+    databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "toiden",
+    storageBucket: "toiden.firebasestorage.app",
+    messagingSenderId: "696461176231",
+    appId: "1:696461176231:web:2120f172e52eaba91a1a82"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
 
-    function sendDonation() {
-      const name = document.getElementById('name').value || '익명';
-      const url = document.getElementById('url').value.trim();
-      const msg = document.getElementById('msg').value.trim();
-      if (!url) { alert("영상 링크를 입력해주세요"); return; }
+  function sendDonation() {
+    const name = document.getElementById('name').value || '익명';
+    const url = document.getElementById('url').value.trim();
+    const msg = document.getElementById('msg').value.trim();
 
-      const roomRef = db.ref('rooms/tobrothertoiden/queue');
-      const newItemRef = roomRef.push();
-      newItemRef.set({
-        name: name,
-        url: url,
-        type: url.includes('youtube.com') || url.includes('youtu.be') ? 'youtube' :
-              url.includes('twitch.tv') ? 'twitch' : 'html5',
-        ytid: url.includes('youtu') ? (url.split('v=')[1]?.split('&')[0] || url.split('/').pop()) : null,
-        msg: msg,
-        ts: Date.now()
-      }).then(() => {
-        alert("후원이 전송되었습니다! 반복적인 영상 제출은 무시당할 수 있습니다.");
-        document.getElementById('name').value = '';
-        document.getElementById('url').value = '';
-        document.getElementById('msg').value = '';
-      });
+    // 유튜브 링크 검증
+    const ytMatch = url.match(/^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^\s&]+)/);
+    if (!ytMatch) {
+      alert("올바른 형식이 아닙니다 (YouTube 링크가 아닙니다)");
+      return;
     }
-  </script>
+
+    const ytid = ytMatch[1]; // 영상 ID 추출
+    const roomRef = db.ref('rooms/tobrothertoiden/queue');
+    const newItemRef = roomRef.push();
+    newItemRef.set({
+      name: name,
+      url: url,
+      type: 'youtube',
+      ytid: ytid,
+      msg: msg,
+      ts: Date.now()
+    }).then(() => {
+      alert("영상이 전송되었습니다! 토이든이가 확인 후 틀어드립니다.");
+      document.getElementById('name').value='';
+      document.getElementById('url').value='';
+      document.getElementById('msg').value='';
+    });
+  }
+</script>
 </body>
 </html>
