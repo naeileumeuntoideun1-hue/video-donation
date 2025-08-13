@@ -1,87 +1,48 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Video Donation 관리자</title>
-  <style>
-    body { font-family: sans-serif; background:#0b0f14; color:#e6edf3; margin:0; padding:0; }
-    .shell { max-width:960px; margin:20px auto; padding:0 10px; }
-    h1 { text-align:center; margin-bottom:20px; }
-    .list { display:flex; flex-direction:column; gap:10px; }
-    .q-item { display:flex; flex-direction:column; padding:12px; border-radius:12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06); }
-    .q-item .title { font-weight:700; }
-    .q-item .actions { margin-top:6px; display:flex; gap:8px; }
-    button { padding:6px 12px; border:none; border-radius:8px; cursor:pointer; font-weight:600; }
-    .btn-play { background: linear-gradient(135deg,#22c55e,#16a34a); color:#05120a; }
-    .btn-delete { background: linear-gradient(135deg,#ef4444,#dc2626); color:#130607; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>관리자 페이지</title>
+<style>
+body{font-family:sans-serif;background:#0f172a;color:#e6edf3;display:flex;justify-content:center;padding:20px;}
+.card{background:#111826;padding:20px;border-radius:20px;max-width:800px;width:100%;}
+button{padding:8px 12px;margin-left:4px;border-radius:12px;border:none;cursor:pointer;}
+.btn-play{background:#22c55e;color:#05120a;font-weight:700;}
+.btn-remove{background:#ef4444;color:#fff;}
+.q-item{background:rgba(255,255,255,0.05);padding:10px;border-radius:12px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;}
+</style>
 </head>
 <body>
-<div class="shell">
-  <h1>Video Donation 관리자</h1>
-  <div class="list" id="admin-queue"></div>
-</div>
-
+<div class="card">
+<h2>관리자 페이지</h2>
+<div id="queue"></div>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
-  authDomain: "toiden.firebaseapp.com",
-  databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "toiden",
-  storageBucket: "toiden.firebasestorage.app",
-  messagingSenderId: "696461176231",
-  appId: "1:696461176231:web:2120f172e52eaba91a1a82"
-};
+const firebaseConfig = {apiKey:"AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",authDomain:"toiden.firebaseapp.com",databaseURL:"https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",projectId:"toiden",storageBucket:"toiden.firebasestorage.app",messagingSenderId:"696461176231",appId:"1:696461176231:web:2120f172e52eaba91a1a82"};
 firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-const ROOM = "tobrothertoiden";
-const queueRef = db.ref(`rooms/${ROOM}/queue`);
-const $list = document.getElementById("admin-queue");
-
-function escapeHtml(s){ return (s||'').replace(/[&<>"]+/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
-
-function renderQueue(snapshot){
-  const data = snapshot.val() || {};
-  $list.innerHTML = '';
-  Object.entries(data).sort((a,b)=> (a[1].ts||0)-(b[1].ts||0)).forEach(([key,item])=>{
-    const el = document.createElement("div");
-    el.className="q-item";
-    el.innerHTML = `
-      <div class="title">${escapeHtml(item.name)} (${item.type})</div>
-      <div>${escapeHtml(item.url)}</div>
-      ${item.msg? `<div>💬 ${escapeHtml(item.msg)}</div>`: ''}
-      <div class="actions">
-        <button class="btn-play" data-key="${key}">영상 송출</button>
-        <button class="btn-delete" data-key="${key}">삭제</button>
-      </div>
-    `;
-    $list.appendChild(el);
+const db = firebase.database().ref('rooms/tobrothertoiden/queue');
+function renderQueue(list){
+  const $q=document.getElementById('queue'); $q.innerHTML='';
+  list.forEach(item=>{
+    const el=document.createElement('div'); el.className='q-item';
+    el.innerHTML=`<span>${item.name} - ${item.msg || ''}</span>
+      <div>
+      <button class="btn-play" data-key="${item.key}">송출</button>
+      <button class="btn-remove" data-key="${item.key}">삭제</button>
+      </div>`;
+    $q.appendChild(el);
   });
+  $q.querySelectorAll('.btn-remove').forEach(b=>b.addEventListener('click',e=>{const k=e.target.dataset.key;db.child(k).remove();}));
+  $q.querySelectorAll('.btn-play').forEach(b=>b.addEventListener('click',e=>{const k=e.target.dataset.key;db.child(k).update({play:true});}));
 }
-queueRef.on("value", renderQueue);
-
-$list.addEventListener("click", async (e)=>{
-  const playBtn = e.target.closest(".btn-play");
-  const delBtn  = e.target.closest(".btn-delete");
-  if(playBtn){
-    const key = playBtn.dataset.key;
-    const snapshot = await queueRef.child(key).once("value");
-    const item = snapshot.val();
-    if(item){
-      const overlayRef = db.ref(`rooms/${ROOM}/overlay`);
-      await overlayRef.set({...item, ts:Date.now()});
-      await queueRef.child(key).remove();
-    }
-  }
-  if(delBtn){
-    const key = delBtn.dataset.key;
-    if(confirm("정말 삭제하시겠습니까?")) await queueRef.child(key).remove();
-  }
+db.on('value',snap=>{
+  const val=snap.val()||{};
+  const list=Object.keys(val).map(k=>({...val[k],key:k}));
+  renderQueue(list);
 });
 </script>
+</div>
 </body>
 </html>
