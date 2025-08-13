@@ -1,76 +1,100 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Kick Video Overlay</title>
-<style>
-body,html{margin:0;padding:0;width:100%;height:100%;background:transparent;}
-#player{width:100%;height:100%;}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Overlay</title>
+  <style>
+    body,html{margin:0;padding:0;width:100%;height:100%;background:transparent;}
+    .overlay{width:100vw;height:100vh;position:relative;overflow:hidden;}
+    .player{position:absolute;inset:0;}
+    .list{position:absolute;top:10px;right:10px;width:300px;}
+    .q-item{margin-bottom:6px;padding:6px;background:rgba(0,0,0,.5);border-radius:8px;color:#fff;}
+    .pill{padding:2px 6px;background:#4ade80;border-radius:4px;font-size:12px;}
+  </style>
 </head>
 <body>
-<div id="player"></div>
+<div class="overlay">
+  <div id="player" class="player"></div>
+  <div id="ol-queue" class="list"></div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
 <script>
-const ROOM = "tobrothertoiden";
-const firebaseConfig = { apiKey:"AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8", authDomain:"toiden.firebaseapp.com", databaseURL:"https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app", projectId:"toiden", storageBucket:"toiden.firebasestorage.app", messagingSenderId:"696461176231", appId:"1:696461176231:web:2120f172e52eaba91a1a82" };
+const ROOM = 'tobrothertoiden';
+const firebaseConfig = {
+  apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
+  authDomain: "toiden.firebaseapp.com",
+  databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "toiden",
+  storageBucket: "toiden.firebasestorage.app",
+  messagingSenderId: "696461176231",
+  appId: "1:696461176231:web:2120f172e52eaba91a1a82"
+};
 firebase.initializeApp(firebaseConfig);
+
+const dbRef = firebase.database().ref(`rooms/${ROOM}/queue`);
+const $player = document.getElementById('player');
+const $q = document.getElementById('ol-queue');
 
 let queue = [];
 let currentIndex = -1;
+let muted = true;
 
 function mountPlayer(item){
-  const $player = document.getElementById('player');
-  $player.innerHTML='';
+  $player.innerHTML = '';
   if(!item) return;
   if(item.type==='youtube' && item.ytid){
     const iframe = document.createElement('iframe');
-    iframe.width='100%'; iframe.height='100%';
-    iframe.src=`https://www.youtube.com/embed/${item.ytid}?autoplay=1&mute=1&enablejsapi=1`;
+    iframe.width='100%'; iframe.height='100%'; iframe.allow='autoplay; encrypted-media';
+    iframe.src=`https://www.youtube.com/embed/${item.ytid}?autoplay=1&mute=${muted?1:0}`;
     iframe.frameBorder='0';
     $player.appendChild(iframe);
-
-    // YouTube API
-    const tag=document.createElement('script'); tag.src="https://www.youtube.com/iframe_api"; document.body.appendChild(tag);
-    window.onYouTubeIframeAPIReady = () => {
-      new YT.Player(iframe,{
-        events:{
-          'onStateChange':e=>{
-            if(e.data===YT.PlayerState.ENDED){
-              removeVideo(item.id);
-              playNext();
-            }
-          }
-        }
-      });
-    }
-
+  } else if(item.type==='twitch'){
+    const iframe = document.createElement('iframe');
+    iframe.width='100%'; iframe.height='100%'; iframe.allow='autoplay';
+    iframe.src=`https://clips.twitch.tv/embed?clip=${encodeURIComponent(new URL(item.url).pathname.split('/').pop())}&parent=${location.hostname}&autoplay=true&muted=${muted}`;
+    iframe.frameBorder='0';
+    $player.appendChild(iframe);
   } else if(item.type==='html5'){
-    const v=document.createElement('video');
-    v.src=item.url; v.autoplay=true; v.muted=true; v.controls=true; v.width='100%'; v.height='100%';
-    v.addEventListener('ended',()=>{ removeVideo(item.id); playNext(); });
+    const v = document.createElement('video'); 
+    v.src=item.url; v.autoplay=true; v.controls=true; v.muted=muted; v.style.width='100%'; v.style.height='100%';
+    v.playsInline=true; v.setAttribute('webkit-playsinline','');
     $player.appendChild(v);
   } else {
-    const d=document.createElement('div'); d.innerHTML='<b>지원되지 않는 항목</b>'; $player.appendChild(d);
+    const d = document.createElement('div'); d.style.padding='20px'; d.innerHTML='<b>지원되지 않는 항목입니다.</b>';
+    $player.appendChild(d);
   }
 }
 
-function playNext(){
-  if(currentIndex<queue.length-1){ currentIndex++; mountPlayer(queue[currentIndex]); }
-  else{ currentIndex=-1; document.getElementById('player').innerHTML=''; }
+function renderQueue(){
+  $q.innerHTML='';
+  queue.forEach((item, idx)=>{
+    const el = document.createElement('div');
+    el.className='q-item';
+    el.innerHTML = `<div>${item.name} ${idx===currentIndex?'<span class="pill">재생중</span>':''}</div>`;
+    $q.appendChild(el);
+  });
 }
 
-function removeVideo(id){
-  firebase.database().ref(`rooms/${ROOM}/queue/${id}`).remove();
-}
-
-// 구독
-firebase.database().ref(`rooms/${ROOM}/queue`).on('value', snap=>{
+dbRef.on('value', snap=>{
   const val = snap.val()||{};
-  queue = Object.values(val);
-  if(currentIndex===-1 && queue.length>0){ currentIndex=0; mountPlayer(queue[0]); }
+  const prevQueue = [...queue];
+  queue = Object.entries(val).map(([key, item])=>({...item,key}));
+  
+  if(currentIndex >= queue.length || !queue[currentIndex]){
+    currentIndex=-1;
+    $player.innerHTML='';
+  }
+  
+  renderQueue();
+  
+  if(queue.length && currentIndex===-1){
+    currentIndex=0;
+    mountPlayer(queue[currentIndex]);
+  }
 });
 </script>
 </body>
