@@ -99,7 +99,7 @@
       const name = document.getElementById('name').value || '익명';
       const url = document.getElementById('url').value.trim();
       const msg = document.getElementById('msg').value.trim();
-      if (!url) { alert("영상 링크를 입력해주세요 [숏폼 안됨]"); return; }
+      if (!url) { alert("영상 링크를 입력해주세요"); return; }
 
       const roomRef = db.ref('rooms/tobrothertoiden/queue');
       const newItemRef = roomRef.push();
