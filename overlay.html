@@ -2,85 +2,64 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>Video Overlay</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Overlay</title>
 <style>
-    body, html { margin: 0; padding: 0; background: transparent; overflow: hidden; width: 100%; height: 100%; }
-    #videoContainer { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+  body { margin:0; padding:0; overflow:hidden; background:transparent; }
+  #videoContainer { width:100vw; height:100vh; display:flex; justify-content:center; align-items:center; background:transparent; }
+  #videoContainer video, #videoContainer iframe { max-width:100%; max-height:100%; }
 </style>
 </head>
 <body>
 <div id="videoContainer"></div>
 
-<script src="https://www.youtube.com/iframe_api"></script>
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
+    authDomain: "toiden.firebaseapp.com",
+    databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "toiden",
+    storageBucket: "toiden.firebasestorage.app",
+    messagingSenderId: "696461176231",
+    appId: "1:696461176231:web:2120f172e52eaba91a1a82"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const roomRef = db.ref('rooms/tobrothertoiden');
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
-  authDomain: "toiden.firebaseapp.com",
-  databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "toiden",
-  storageBucket: "toiden.firebasestorage.app",
-  messagingSenderId: "696461176231",
-  appId: "1:696461176231:web:2120f172e52eaba91a1a82"
-};
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const roomName = "tobrothertoiden";
+  let currentKey = null;
 
-let ytPlayer = null;
-let currentKey = null;
-
-const videoContainer = document.getElementById('videoContainer');
-
-function createYouTubePlayer(ytid) {
-    videoContainer.innerHTML = "";
-    const div = document.createElement('div');
-    div.id = 'ytPlayer';
-    videoContainer.appendChild(div);
-
-    ytPlayer = new YT.Player('ytPlayer', {
-        videoId: ytid,
-        playerVars: { autoplay: 1, controls: 1 },
-        events: {
-            'onReady': (event) => { event.target.playVideo(); },
-        }
+  roomRef.child('current').on('value', snap => {
+    const key = snap.val();
+    if (!key || key === currentKey) return;
+    currentKey = key;
+    roomRef.child('queue').child(key).once('value').then(itemSnap => {
+      const item = itemSnap.val();
+      if (!item) return;
+      const container = document.getElementById('videoContainer');
+      container.innerHTML = '';
+      let el;
+      if (item.type === 'youtube') {
+        el = document.createElement('iframe');
+        el.src = `https://www.youtube.com/embed/${item.ytid}?autoplay=1&mute=0`;
+        el.allow = 'autoplay; fullscreen';
+      } else if (item.type === 'twitch') {
+        el = document.createElement('iframe');
+        el.src = item.url;
+        el.allow = 'autoplay; fullscreen';
+      } else {
+        el = document.createElement('video');
+        el.src = item.url;
+        el.autoplay = true;
+        el.controls = false;
+      }
+      el.style.maxWidth = '100%';
+      el.style.maxHeight = '100%';
+      container.appendChild(el);
     });
-}
-
-function playVideo(videoData) {
-    videoContainer.innerHTML = "";
-    if(videoData.type === "youtube") {
-        createYouTubePlayer(videoData.ytid);
-    } else if(videoData.type === "html5") {
-        const vid = document.createElement("video");
-        vid.src = videoData.url;
-        vid.autoplay = true;
-        vid.controls = false;
-        vid.muted = false; // OBS 브라우저에서도 음소거 해제
-        vid.style.width = "100%";
-        vid.style.height = "100%";
-        videoContainer.appendChild(vid);
-    } else if(videoData.type === "twitch") {
-        const clipID = videoData.url.split("/").pop();
-        const iframe = document.createElement("iframe");
-        iframe.src = `https://clips.twitch.tv/embed?clip=${clipID}&autoplay=true`;
-        iframe.allow = "autoplay; fullscreen";
-        iframe.style.width = "100%";
-        iframe.style.height = "100%";
-        videoContainer.appendChild(iframe);
-    }
-}
-
-// 관리자에서 송출 버튼 클릭 시 current 노드에 기록
-onValue(ref(db, `rooms/${roomName}/current`), snapshot => {
-    const data = snapshot.val();
-    if(data && data.key !== currentKey) {
-        currentKey = data.key;
-        playVideo(data.video);
-    }
-});
+  });
 </script>
 </body>
 </html>
