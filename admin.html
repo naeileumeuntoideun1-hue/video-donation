@@ -1,53 +1,57 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Kick Video Admin</title>
-<style>
-body{font-family:sans-serif;margin:20px;}
-.q-item{padding:8px;border:1px solid #ccc;margin-bottom:6px;}
-.btn{padding:4px 8px;margin-left:6px;cursor:pointer;}
-</style>
+<meta charset="utf-8">
+<title>Admin</title>
 </head>
 <body>
-<h1>Admin - 영상 대기열</h1>
-<button class="btn" id="clear-all">전체 초기화</button>
-<div id="admin-queue"></div>
+<h2>관리자 페이지</h2>
+<div id="queue-list"></div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
 <script>
-const ROOM="tobrothertoiden";
-const firebaseConfig={ apiKey:"AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8", authDomain:"toiden.firebaseapp.com", databaseURL:"https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app", projectId:"toiden", storageBucket:"toiden.firebasestorage.app", messagingSenderId:"696461176231", appId:"1:696461176231:web:2120f172e52eaba91a1a82" };
+const ROOM = 'tobrothertoiden';
+const firebaseConfig = {
+  apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
+  authDomain: "toiden.firebaseapp.com",
+  databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "toiden",
+  storageBucket: "toiden.firebasestorage.app",
+  messagingSenderId: "696461176231",
+  appId: "1:696461176231:web:2120f172e52eaba91a1a82"
+};
 firebase.initializeApp(firebaseConfig);
 
-function removeVideo(id){
-  firebase.database().ref(`rooms/${ROOM}/queue/${id}`).remove();
-}
+const dbRef = firebase.database().ref(`rooms/${ROOM}/queue`);
+const $q = document.getElementById('queue-list');
+let queue = [];
 
-function renderQueue(queue){
-  const $list = document.getElementById('admin-queue');
-  $list.innerHTML='';
-  queue.forEach(item=>{
-    const el=document.createElement('div');
-    el.className='q-item';
-    el.innerHTML=`${item.name} (${item.type}): ${item.url} ${item.msg? '<div>'+item.msg+'</div>':''} 
-      <button class="btn" onclick="removeVideo('${item.id}')">삭제</button>`;
-    $list.appendChild(el);
+function renderQueue(){
+  $q.innerHTML='';
+  queue.forEach((item, idx)=>{
+    const div = document.createElement('div');
+    div.innerHTML=`${item.name} - ${item.url} <button data-idx="${idx}">삭제</button>`;
+    $q.appendChild(div);
   });
 }
 
-document.getElementById('clear-all').addEventListener('click', ()=>{
-  if(confirm('전체 초기화하시겠습니까?')){
-    firebase.database().ref(`rooms/${ROOM}/queue`).set({});
+$q.addEventListener('click', async e=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  const idx = +btn.dataset.idx;
+  const item = queue[idx];
+  if(!item) return;
+  if(confirm(`"${item.name}"님의 영상을 삭제하시겠습니까?`)){
+    await dbRef.child(item.key).remove();
   }
 });
 
-firebase.database().ref(`rooms/${ROOM}/queue`).on('value',snap=>{
+dbRef.on('value', snap=>{
   const val = snap.val()||{};
-  const arr = Object.values(val);
-  renderQueue(arr);
+  queue = Object.entries(val).map(([key,item])=>({...item,key}));
+  renderQueue();
 });
 </script>
 </body>
