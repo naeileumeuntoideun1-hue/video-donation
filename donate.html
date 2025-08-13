@@ -1,24 +1,69 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>영상 제출 - 스트리머 후원</title>
-    <link rel="stylesheet" href="common.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>토이든 영도</title>
+<style>
+body { font-family: sans-serif; background:#0b0f14; color:#e6edf3; display:flex; justify-content:center; padding:50px; }
+.container{ background:rgba(17,24,38,.9); padding:20px; border-radius:16px; width:400px; }
+input, textarea, button { width:100%; margin:6px 0; padding:10px; border-radius:8px; border:none; }
+button { background:#22c55e; color:#05120a; cursor:pointer; font-weight:700; }
+</style>
 </head>
 <body>
-    <h1>🎥 영상 제출 & 후원</h1>
-    <div class="donate-box">
-        <label for="videoUrl">영상 URL</label>
-        <input type="text" id="videoUrl" placeholder="YouTube 또는 Twitch 클립 URL 입력">
-        <label for="username">닉네임</label>
-        <input type="text" id="username" placeholder="당신의 닉네임">
-        <label for="message">하고 싶은 말</label>
-        <textarea id="message" placeholder="스트리머에게 전할 메시지를 작성하세요" rows="4"></textarea>
-        <button onclick="submitVideo()">제출하기</button>
-    </div>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"></script>
-    <script src="common.js"></script>
+<div class="container">
+<h2>토이든 영도</h2>
+<label>닉네임</label>
+<input id="name" placeholder="닉네임">
+<label>영상 URL (YouTube / Twitch Clip / MP4)</label>
+<input id="url" placeholder="https://youtu.be/...">
+<label>메시지 (선택)</label>
+<textarea id="msg" placeholder="하고 싶은 말"></textarea>
+<button id="submitBtn">영상 제출</button>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+// Firebase 설정
+const firebaseConfig = {
+  apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
+  authDomain: "toiden.firebaseapp.com",
+  databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "toiden",
+  storageBucket: "toiden.appspot.com",
+  messagingSenderId: "696461176231",
+  appId: "1:696461176231:web:2120f172e52eaba91a1a82"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const ROOM = "tobrothertoiden";
+
+function classifyURL(url){
+  try{
+    const u = new URL(url);
+    const host = u.host.replace('www.','');
+    if(/youtube\.com|youtu\.be/.test(host)) return {type:'youtube', id:u.searchParams.get('v')||u.pathname.slice(1)};
+    if(/twitch\.tv/.test(host) && /clip/.test(u.pathname)) return {type:'twitch', id:null};
+    if(/\.(mp4|webm|ogg)(\?|$)/i.test(u.pathname)) return {type:'html5', id:null};
+    return {type:'unknown'};
+  }catch(e){ return {type:'invalid'} }
+}
+
+document.getElementById('submitBtn').addEventListener('click', ()=>{
+  const name = document.getElementById('name').value || "익명";
+  const url = document.getElementById('url').value.trim();
+  const msg = document.getElementById('msg').value.trim();
+  const c = classifyURL(url);
+  if(c.type==='invalid' || c.type==='unknown') return alert('지원되지 않는 URL입니다.');
+  const payload = { name, url, type:c.type, ytid:c.id||null, msg, ts:Date.now() };
+  push(ref(db, `rooms/${ROOM}/queue`), payload)
+    .then(()=> alert('영상이 제출되었습니다!'))
+    .catch(err=> alert('전송 실패: '+err.message));
+});
+</script>
 </body>
 </html>
