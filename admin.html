@@ -1,3 +1,26 @@
+<body>
+  <div id="loginContainer" style="text-align:center;margin-top:100px;">
+    <h2>관리자 로그인</h2>
+    <input type="password" id="adminPass" placeholder="비밀번호 입력" style="padding:8px;font-size:16px;">
+    <button id="loginBtn" style="padding:8px 16px;font-size:16px;">로그인</button>
+    <p id="loginMsg" style="color:red;"></p>
+  </div>
+
+  <div id="adminContainer" style="display:none;">
+    <table id="queueTable" border="1" style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th>이름</th>
+          <th>URL</th>
+          <th>메시지</th>
+          <th>송출</th>
+          <th>삭제</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
 import { getDatabase, ref, get, onValue, set, remove } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
@@ -16,35 +39,56 @@ const db = getDatabase(app);
 const room = "tobrothertoiden";
 const tbody = document.querySelector("#queueTable tbody");
 
-// 비밀번호 확인 로직
-async function checkPassword() {
-  const passRef = ref(db, `rooms/${room}/adminPass`);
-  const snap = await get(passRef);
-  const correctPass = snap.exists() ? snap.val() : null;
-  
-  if (!correctPass) {
-    alert("서버에 비밀번호가 설정되어 있지 않습니다.");
-    return false;
-  }
+let userIP = null;
 
-  const input = prompt("관리자 비밀번호를 입력하세요:");
-  if (input === correctPass) {
-    return true;
-  } else {
-    alert("잘못된 비밀번호입니다.");
-    return false;
-  }
+// IP 가져오기
+async function getUserIP() {
+  const res = await fetch("https://api.ipify.org?format=json");
+  const data = await res.json();
+  return data.ip;
 }
 
-// 관리자 페이지 초기화
-async function initAdmin() {
-  const allowed = await checkPassword();
-  if (!allowed) {
-    document.body.innerHTML = "<h2 style='text-align:center;color:red;'>접근 거부</h2>";
+// 로그인 처리
+async function loginAdmin() {
+  userIP = await getUserIP();
+  const failRef = ref(db, `rooms/${room}/loginFail/${userIP}`);
+  const failSnap = await get(failRef);
+  const failData = failSnap.exists() ? failSnap.val() : { count: 0, blockedUntil: 0 };
+
+  const now = Date.now();
+  if (failData.blockedUntil && now < failData.blockedUntil) {
+    document.getElementById("loginMsg").innerText = "10분 후 다시 시도하세요.";
     return;
   }
 
-  // 큐 감시 및 테이블 갱신
+  const passRef = ref(db, `rooms/${room}/adminPass`);
+  const snap = await get(passRef);
+  const correctPass = snap.exists() ? snap.val() : null;
+
+  const inputPass = document.getElementById("adminPass").value;
+  if (inputPass === correctPass) {
+    // 성공 → 실패 기록 초기화
+    await set(failRef, { count: 0, blockedUntil: 0 });
+    document.getElementById("loginContainer").style.display = "none";
+    document.getElementById("adminContainer").style.display = "block";
+    initAdmin();
+  } else {
+    let newCount = (failData.count || 0) + 1;
+    let blockedUntil = failData.blockedUntil || 0;
+    if (newCount >= 5) {
+      blockedUntil = now + (10 * 60 * 1000); // 10분 차단
+      newCount = 0; // 카운트 리셋
+      alert("5회 실패로 10분간 차단됩니다.");
+    }
+    await set(failRef, { count: newCount, blockedUntil });
+    document.getElementById("loginMsg").innerText = "비밀번호가 틀렸습니다.";
+  }
+}
+
+document.getElementById("loginBtn").addEventListener("click", loginAdmin);
+
+// 관리자 페이지 초기화
+function initAdmin() {
   const queueRef = ref(db, `rooms/${room}/queue`);
   onValue(queueRef, snapshot => {
     const data = snapshot.val() || {};
@@ -62,7 +106,6 @@ async function initAdmin() {
     });
   });
 
-  // 송출 버튼
   tbody.addEventListener("click", e => {
     if (e.target.classList.contains("playBtn")) {
       const key = e.target.dataset.key;
@@ -75,7 +118,6 @@ async function initAdmin() {
     }
   });
 
-  // 삭제 버튼
   tbody.addEventListener("click", e => {
     if (e.target.classList.contains("delBtn")) {
       const key = e.target.dataset.key;
@@ -94,6 +136,5 @@ async function initAdmin() {
     }
   });
 }
-
-initAdmin();
 </script>
+</body>
