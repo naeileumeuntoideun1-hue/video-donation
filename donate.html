@@ -1,68 +1,92 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>토이든 영도</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Kick Video Donation - Donate</title>
 <style>
-body { font-family: sans-serif; background:#0b0f14; color:#e6edf3; display:flex; justify-content:center; padding:50px; }
-.container{ background:rgba(17,24,38,.9); padding:20px; border-radius:16px; width:400px; }
-input, textarea, button { width:100%; margin:6px 0; padding:10px; border-radius:8px; border:none; }
-button { background:#22c55e; color:#05120a; cursor:pointer; font-weight:700; }
+/* 기본 스타일 생략, 기존 donate.css 그대로 사용 가능 */
 </style>
 </head>
 <body>
-<div class="container">
-<h2>토이든 영도</h2>
-<label>닉네임</label>
-<input id="name" placeholder="닉네임">
-<label>영상 URL (YouTube / Twitch Clip / MP4)</label>
-<input id="url" placeholder="https://youtu.be/...">
-<label>메시지 (선택)</label>
-<textarea id="msg" placeholder="하고 싶은 말"></textarea>
-<button id="submitBtn">영상 제출</button>
+<div class="shell" id="app">
+  <div class="card">
+    <header>
+      <h1>무료 영상 도네이션</h1>
+      <span class="badge" id="status-badge">로컬 데모</span>
+    </header>
+    <div class="content">
+      <div class="stack">
+        <label>닉네임</label>
+        <input id="name" placeholder="닉네임"/>
+        <label>영상 URL</label>
+        <input id="url" placeholder="YouTube/MP4/Twitch"/>
+        <label>메시지 (선택)</label>
+        <textarea id="msg" placeholder="하고 싶은 말"></textarea>
+        <div class="row">
+          <button class="btn" id="send">영상 보내기</button>
+        </div>
+        <div class="list" id="queue-list"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
-
-// Firebase 설정
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script>
+const ROOM = "tobrothertoiden"; // Kick 닉네임 기반 룸
 const firebaseConfig = {
   apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
   authDomain: "toiden.firebaseapp.com",
   databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "toiden",
-  storageBucket: "toiden.appspot.com",
+  storageBucket: "toiden.firebasestorage.app",
   messagingSenderId: "696461176231",
   appId: "1:696461176231:web:2120f172e52eaba91a1a82"
 };
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const ROOM = "tobrothertoiden";
+firebase.initializeApp(firebaseConfig);
 
 function classifyURL(url){
   try{
     const u = new URL(url);
     const host = u.host.replace('www.','');
-    if(/youtube\.com|youtu\.be/.test(host)) return {type:'youtube', id:u.searchParams.get('v')||u.pathname.slice(1)};
-    if(/twitch\.tv/.test(host) && /clip/.test(u.pathname)) return {type:'twitch', id:null};
-    if(/\.(mp4|webm|ogg)(\?|$)/i.test(u.pathname)) return {type:'html5', id:null};
+    if(/youtube\.com|youtu\.be/.test(host)) return {type:'youtube', id:extractYouTubeId(u)};
+    if(/clips\.twitch\.tv/.test(host) || /twitch\.tv/.test(host)) return {type:'twitch', url};
+    if(/\.(mp4|webm|ogg)$/i.test(u.pathname)) return {type:'html5', url};
     return {type:'unknown'};
-  }catch(e){ return {type:'invalid'} }
+  }catch(e){ return {type:'invalid'}; }
+}
+function extractYouTubeId(u){
+  if(u.hostname==='youtu.be') return u.pathname.slice(1);
+  return new URLSearchParams(u.search).get('v');
 }
 
-document.getElementById('submitBtn').addEventListener('click', ()=>{
-  const name = document.getElementById('name').value || "익명";
+document.getElementById('send').addEventListener('click', ()=>{
+  const name = document.getElementById('name').value || '익명';
   const url = document.getElementById('url').value.trim();
-  const msg = document.getElementById('msg').value.trim();
+  const msg = document.getElementById('msg').value.slice(0,140);
   const c = classifyURL(url);
-  if(c.type==='invalid' || c.type==='unknown') return alert('지원되지 않는 URL입니다.');
-  const payload = { name, url, type:c.type, ytid:c.id||null, msg, ts:Date.now() };
-  push(ref(db, `rooms/${ROOM}/queue`), payload)
-    .then(()=> alert('영상이 제출되었습니다!'))
-    .catch(err=> alert('전송 실패: '+err.message));
+  if(c.type==='invalid' || c.type==='unknown') return alert('지원하지 않는 URL입니다.');
+  const newRef = firebase.database().ref(`rooms/${ROOM}/queue`).push();
+  newRef.set({
+    name, url, type:c.type, ytid:c.id||null, msg, ts:Date.now(), id:newRef.key
+  });
+  document.getElementById('url').value='';
+  document.getElementById('msg').value='';
+});
+
+// 큐 미리보기
+firebase.database().ref(`rooms/${ROOM}/queue`).on('value', snap=>{
+  const list = snap.val()||{};
+  const $list = document.getElementById('queue-list');
+  $list.innerHTML='';
+  Object.values(list).forEach(item=>{
+    const el = document.createElement('div');
+    el.className='q-item';
+    el.innerHTML=`${item.name} (${item.type}): ${item.url} ${item.msg? '<div>'+item.msg+'</div>':''}`;
+    $list.appendChild(el);
+  });
 });
 </script>
 </body>
