@@ -7,14 +7,14 @@
 <style>
 body{ margin:0; background:transparent; color:white; overflow:hidden; font-family:sans-serif; }
 #overlay { position:relative; width:100%; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; }
-video{ max-width:90%; max-height:80%; border:3px solid white; border-radius:12px; }
-#message{ margin-top:12px; font-size:1.5em; background:rgba(0,0,0,0.4); padding:6px 12px; border-radius:8px; }
+#message{ font-size:3em; background:rgba(0,0,0,0.6); padding:12px 24px; border-radius:12px; opacity:1; transition:opacity 0.5s; }
+#video-player{ max-width:90%; max-height:80%; display:none; border:3px solid white; border-radius:12px; }
 </style>
 </head>
 <body>
 <div id="overlay">
-  <video id="video-player" controls autoplay></video>
   <div id="message"></div>
+  <iframe id="video-player" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -34,20 +34,35 @@ const db = firebase.database();
 
 const ROOM = "tobrothertoiden";
 const overlayRef = db.ref(`rooms/${ROOM}/overlay`);
-const video = document.getElementById("video-player");
-const msgDiv = document.getElementById("message");
+const messageDiv = document.getElementById("message");
+const videoFrame = document.getElementById("video-player");
 
-overlayRef.on("value",(snap)=>{
+overlayRef.on("value", snap => {
   const item = snap.val();
   if(!item) return;
-  msgDiv.textContent = item.msg || '';
-  if(item.type==="youtube"){
-    video.src = `https://www.youtube.com/embed/${item.ytid}?autoplay=1`;
-    video.setAttribute("controls", false);
-  }else{
-    video.src = item.url;
-    video.setAttribute("controls", true);
-  }
+
+  // 1️⃣ 메시지 먼저
+  messageDiv.textContent = item.msg || '';
+  messageDiv.style.opacity = "1";
+  videoFrame.style.display = "none";
+  videoFrame.src = "";
+
+  // 2️⃣ 5초 후 영상 재생
+  setTimeout(()=>{
+    messageDiv.style.opacity = "0";
+    setTimeout(()=>{
+      messageDiv.style.display = "none";
+      videoFrame.style.display = "block";
+
+      if(item.type==="youtube" && item.ytid){
+        // 유튜브 자동 재생, 음소거 해제
+        videoFrame.src = `https://www.youtube.com/embed/${item.ytid}?autoplay=1&mute=0&enablejsapi=1`;
+      } else {
+        // html5 영상
+        videoFrame.src = item.url;
+      }
+    },500);
+  },5000);
 });
 </script>
 </body>
