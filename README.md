@@ -7,3 +7,5 @@
 2. `overlay.html?room=방이름` → OBS 브라우저 소스로 띄울 영상 재생 페이지
 
 Firebase Realtime Database를 사용하여 영상 큐를 관리합니다.
+
+Made By Toiden
