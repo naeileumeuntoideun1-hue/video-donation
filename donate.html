@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>토브라더.com</title>
+<title>Video Donation</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
 
@@ -68,7 +68,6 @@
     background-color: #0056b3;
   }
 
-  /* 반응형 */
   @media (max-width: 500px) {
     .container {
       padding: 30px 20px;
@@ -83,7 +82,7 @@
 <div class="container">
   <h1>🎬 토이든 방송 무료 영상도네</h1>
   <input type="text" id="name" placeholder="이름 (선택)">
-  <input type="text" id="url" placeholder="YouTube 영상 링크만 가능">
+  <input type="text" id="url" placeholder="YouTube 영상 링크">
   <textarea id="msg" rows="3" placeholder="메시지 (선택)"></textarea>
   <button onclick="sendDonation()">영상 보내기</button>
 </div>
@@ -108,14 +107,14 @@
     const url = document.getElementById('url').value.trim();
     const msg = document.getElementById('msg').value.trim();
 
-    // 유튜브 링크 검증
-    const ytMatch = url.match(/^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^\s&]+)/);
+    // YouTube 링크 검증 (숏폼 + 롱폼)
+    const ytMatch = url.match(/^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([^\s&?/]+)/);
     if (!ytMatch) {
       alert("올바른 형식이 아닙니다 (YouTube 링크가 아닙니다)");
       return;
     }
+    const ytid = ytMatch[1];
 
-    const ytid = ytMatch[1]; // 영상 ID 추출
     const roomRef = db.ref('rooms/tobrothertoiden/queue');
     const newItemRef = roomRef.push();
     newItemRef.set({
@@ -126,7 +125,7 @@
       msg: msg,
       ts: Date.now()
     }).then(() => {
-      alert("영상이 전송되었습니다! 토이든이가 확인 후 틀어드립니다.");
+      alert("후원이 전송되었습니다! 반복적인 영상 제출은 무시될 수 있습니다.");
       document.getElementById('name').value='';
       document.getElementById('url').value='';
       document.getElementById('msg').value='';
