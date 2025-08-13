@@ -1,29 +1,24 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>영상 제출</title>
-  <link rel="stylesheet" href="common.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>영상 제출 - 스트리머 후원</title>
+    <link rel="stylesheet" href="common.css">
 </head>
 <body>
-  <h1>영상 제출 페이지</h1>
-  <input type="text" id="videoUrl" placeholder="영상 URL 입력">
-  <button id="submitBtn">제출</button>
-
-  <script type="module">
-    import { submitVideo } from './common.js';
-
-    const params = new URLSearchParams(window.location.search);
-    const room = params.get('room') || 'default';
-
-    document.getElementById('submitBtn').addEventListener('click', () => {
-      const url = document.getElementById('videoUrl').value.trim();
-      if (url) {
-        submitVideo(room, url);
-        alert('영상이 제출되었습니다!');
-      }
-    });
-  </script>
+    <h1>🎥 영상 제출 & 후원</h1>
+    <div class="donate-box">
+        <label for="videoUrl">영상 URL</label>
+        <input type="text" id="videoUrl" placeholder="YouTube 또는 Twitch 클립 URL 입력">
+        <label for="username">닉네임</label>
+        <input type="text" id="username" placeholder="당신의 닉네임">
+        <label for="message">하고 싶은 말</label>
+        <textarea id="message" placeholder="스트리머에게 전할 메시지를 작성하세요" rows="4"></textarea>
+        <button onclick="submitVideo()">제출하기</button>
+    </div>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"></script>
+    <script src="common.js"></script>
 </body>
 </html>
