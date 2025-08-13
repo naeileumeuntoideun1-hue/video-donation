@@ -1,75 +1,67 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<title>Video Overlay</title>
-<style>
-  body { margin: 0; background: black; display: flex; justify-content: center; align-items: center; height: 100vh; }
-  #player { width: 100%; height: 100%; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Overlay</title>
+  <style>
+    body { margin:0; padding:0; overflow:hidden; background:transparent; }
+    #videoContainer {
+      width:100vw; height:100vh;
+      display:flex; justify-content:center; align-items:center;
+      background:transparent;
+    }
+    #videoContainer iframe { max-width:100%; max-height:100%; }
+  </style>
 </head>
 <body>
-<div id="player"></div>
+  <div id="videoContainer"></div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
+      authDomain: "toiden.firebaseapp.com",
+      databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "toiden",
+      storageBucket: "toiden.firebasestorage.app",
+      messagingSenderId: "696461176231",
+      appId: "1:696461176231:web:2120f172e52eaba91a1a82"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const roomRef = db.ref('rooms/tobrothertoiden');
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
-  authDomain: "toiden.firebaseapp.com",
-  databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "toiden",
-  storageBucket: "toiden.firebasedestorage.app",
-  messagingSenderId: "696461176231",
-  appId: "1:696461176231:web:2120f172e52eaba91a1a82"
-};
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const room = "tobrothertoiden";
+    let currentKey = null;
 
-let player;
+    // 현재 재생 중인 항목을 감지
+    roomRef.child('current').on('value', snap => {
+      const key = snap.val();
+      if (!key || key === currentKey) return;
+      currentKey = key;
 
-// YouTube API 로드
-function loadYouTubeAPI() {
-  return new Promise((resolve) => {
-    if(window.YT && window.YT.Player) resolve();
-    const tag = document.createElement('script');
-    tag.src = "https://www.youtube.com/iframe_api";
-    document.body.appendChild(tag);
-    window.onYouTubeIframeAPIReady = resolve;
-  });
-}
+      // 큐에서 해당 항목을 한 번 읽어옴
+      roomRef.child('queue').child(key).once('value').then(itemSnap => {
+        const item = itemSnap.val();
+        if (!item) return;
 
-// 영상 재생
-function playVideo(ytid){
-  if(!ytid) return;
-  if(player){
-    player.loadVideoById(ytid);
-  } else {
-    player = new YT.Player('player', {
-      videoId: ytid,
-      playerVars: { autoplay: 1, controls: 1 },
-      events: { 'onReady': e => e.target.playVideo() }
+        const container = document.getElementById('videoContainer');
+        container.innerHTML = '';  // 이전 내용 제거
+
+        // YouTube인 경우 iframe 생성 (자동재생 및 음소거)
+        if (item.type === 'youtube') {
+          const el = document.createElement('iframe');
+          // YouTube Shorts나 일반 동영상 ID를 모두 지원: ID만 지정하면 자동 재생됨
+          el.src = `https://www.youtube.com/embed/${item.ytid}?autoplay=1&mute=1`;
+          el.allow = 'autoplay; fullscreen';
+          el.style.maxWidth = '100%';
+          el.style.maxHeight = '100%';
+          container.appendChild(el);
+        }
+        // (item.type이 youtube가 아니면 아무 작업도 하지 않음)
+      });
     });
-  }
-}
-
-// OBS 실시간 감시
-const queueRef = ref(db, `rooms/${room}/currentVideo`);
-onValue(queueRef, async (snapshot)=>{
-  const video = snapshot.val();
-  if(!video){
-    // 삭제시 플레이어 제거
-    if(player) player.destroy();
-    player = null;
-    return;
-  }
-  if(video.type === "youtube" && video.ytid){
-    await loadYouTubeAPI();
-    playVideo(video.ytid);
-  }
-});
-</script>
+  </script>
 </body>
 </html>
