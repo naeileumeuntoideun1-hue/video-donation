@@ -4,28 +4,124 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Panel</title>
+  <!-- 구글 폰트 -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: sans-serif; text-align:center; margin-top:50px; }
-    table { width:100%; border-collapse:collapse; margin-top:20px; }
-    th, td { border:1px solid #ddd; padding:8px; }
-    th { background:#f5f5f5; }
-    button { padding:5px 10px; }
+    body {
+      font-family: 'Roboto', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #74ebd5, #ACB6E5);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .container {
+      background: #fff;
+      border-radius: 16px;
+      padding: 30px;
+      margin: 40px 20px;
+      width: 100%;
+      max-width: 1000px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-weight: 700;
+      color: #333;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      table-layout: auto;
+    }
+
+    th, td {
+      padding: 12px 10px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+      word-break: break-word;
+    }
+
+    th {
+      background-color: #f7f7f7;
+      font-weight: 500;
+    }
+
+    a {
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: 0.2s;
+    }
+
+    .playBtn {
+      background-color: #28a745;
+      color: #fff;
+    }
+    .playBtn:hover {
+      background-color: #218838;
+    }
+
+    .delBtn {
+      background-color: #dc3545;
+      color: #fff;
+    }
+    .delBtn:hover {
+      background-color: #c82333;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        margin: 20px;
+        padding: 20px;
+      }
+
+      th, td {
+        font-size: 14px;
+        padding: 8px 6px;
+      }
+
+      button {
+        font-size: 13px;
+        padding: 5px 10px;
+      }
+    }
   </style>
 </head>
 <body>
-  <h2>Admin Panel</h2>
-  <table id="queueTable">
-    <thead>
-      <tr>
-        <th>이름</th>
-        <th>URL</th>
-        <th>메시지</th>
-        <th>송출</th>
-        <th>삭제</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div class="container">
+    <h1>관리자 패널</h1>
+    <table id="queueTable">
+      <thead>
+        <tr>
+          <th>이름</th>
+          <th>영상 링크</th>
+          <th>메시지</th>
+          <th>송출</th>
+          <th>삭제</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
@@ -46,17 +142,15 @@ const db = getDatabase(app);
 const room = "tobrothertoiden";
 const tbody = document.querySelector("#queueTable tbody");
 
-// 관리자 페이지 초기화
-function initAdmin(){
+function initAdmin() {
   const queueRef = ref(db, `rooms/${room}/queue`);
-  
-  // 큐 실시간 반영
-  onValue(queueRef, snapshot=>{
+
+  onValue(queueRef, (snapshot) => {
     const data = snapshot.val() || {};
     tbody.innerHTML = "";
-    Object.entries(data).forEach(([key, video])=>{
-      const tr=document.createElement("tr");
-      tr.innerHTML=`
+    Object.entries(data).forEach(([key, video]) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
         <td>${video.name ?? ""}</td>
         <td><a href="${video.url}" target="_blank" rel="noopener">${video.url}</a></td>
         <td>${video.msg ?? ""}</td>
@@ -67,28 +161,27 @@ function initAdmin(){
     });
   });
 
-  // 버튼 이벤트
-  tbody.addEventListener("click", e=>{
-    const btn = e.target.closest("button"); 
-    if(!btn) return;
-    const key = btn.dataset.key; 
-    if(!key) return;
+  tbody.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    const key = btn.dataset.key;
+    if (!key) return;
 
-    if(btn.classList.contains("playBtn")){
-      get(ref(db, `rooms/${room}/queue/${key}`)).then(snap=>{
-        const video = snap.val();
-        if(video) set(ref(db, `rooms/${room}/currentVideo`), video);
+    if (btn.classList.contains("playBtn")) {
+      get(ref(db, `rooms/${room}/queue/${key}`)).then((snapshot) => {
+        const video = snapshot.val();
+        if (video) set(ref(db, `rooms/${room}/currentVideo`), video);
       });
     }
 
-    if(btn.classList.contains("delBtn")){
-      get(ref(db, `rooms/${room}/queue/${key}`)).then(snap=>{
-        const video = snap.val();
-        if(video){
+    if (btn.classList.contains("delBtn")) {
+      get(ref(db, `rooms/${room}/queue/${key}`)).then((snapshot) => {
+        const video = snapshot.val();
+        if (video) {
           remove(ref(db, `rooms/${room}/queue/${key}`));
-          get(ref(db, `rooms/${room}/currentVideo`)).then(snapCur=>{
+          get(ref(db, `rooms/${room}/currentVideo`)).then((snapCur) => {
             const current = snapCur.val();
-            if(current && current.url === video.url){
+            if (current && current.url === video.url) {
               remove(ref(db, `rooms/${room}/currentVideo`));
             }
           });
@@ -98,7 +191,7 @@ function initAdmin(){
   });
 }
 
-// 바로 관리자 페이지 초기화
+// 페이지 로드 시 바로 관리자 패널 표시
 initAdmin();
 </script>
 </body>
