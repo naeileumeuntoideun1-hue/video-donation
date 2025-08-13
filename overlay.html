@@ -1,60 +1,76 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>영상 도네이션 • 오버레이</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Kick Video Overlay</title>
 <style>
-body { margin:0; background:transparent; overflow:hidden; font-family:sans-serif; }
-#player { position:absolute; inset:0; }
+body,html{margin:0;padding:0;width:100%;height:100%;background:transparent;}
+#player{width:100%;height:100%;}
 </style>
 </head>
 <body>
 <div id="player"></div>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
-  authDomain: "toiden.firebaseapp.com",
-  databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "toiden",
-  storageBucket: "toiden.appspot.com",
-  messagingSenderId: "696461176231",
-  appId: "1:696461176231:web:2120f172e52eaba91a1a82"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script>
 const ROOM = "tobrothertoiden";
-const player = document.getElementById('player');
+const firebaseConfig = { apiKey:"AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8", authDomain:"toiden.firebaseapp.com", databaseURL:"https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app", projectId:"toiden", storageBucket:"toiden.firebasestorage.app", messagingSenderId:"696461176231", appId:"1:696461176231:web:2120f172e52eaba91a1a82" };
+firebase.initializeApp(firebaseConfig);
 
 let queue = [];
 let currentIndex = -1;
-let muted = true;
 
 function mountPlayer(item){
-  player.innerHTML='';
+  const $player = document.getElementById('player');
+  $player.innerHTML='';
   if(!item) return;
   if(item.type==='youtube' && item.ytid){
     const iframe = document.createElement('iframe');
-    iframe.src=`https://www.youtube.com/embed/${item.ytid}?autoplay=1&mute=${muted?1:0}`;
-    iframe.width='100%'; iframe.height='100%'; iframe.frameBorder='0'; iframe.allow='autoplay; encrypted-media';
-    player.appendChild(iframe);
+    iframe.width='100%'; iframe.height='100%';
+    iframe.src=`https://www.youtube.com/embed/${item.ytid}?autoplay=1&mute=1&enablejsapi=1`;
+    iframe.frameBorder='0';
+    $player.appendChild(iframe);
+
+    // YouTube API
+    const tag=document.createElement('script'); tag.src="https://www.youtube.com/iframe_api"; document.body.appendChild(tag);
+    window.onYouTubeIframeAPIReady = () => {
+      new YT.Player(iframe,{
+        events:{
+          'onStateChange':e=>{
+            if(e.data===YT.PlayerState.ENDED){
+              removeVideo(item.id);
+              playNext();
+            }
+          }
+        }
+      });
+    }
+
   } else if(item.type==='html5'){
-    const v = document.createElement('video'); v.src=item.url; v.autoplay=true; v.controls=true; v.muted=muted;
-    v.style.width='100%'; v.style.height='100%'; player.appendChild(v);
+    const v=document.createElement('video');
+    v.src=item.url; v.autoplay=true; v.muted=true; v.controls=true; v.width='100%'; v.height='100%';
+    v.addEventListener('ended',()=>{ removeVideo(item.id); playNext(); });
+    $player.appendChild(v);
   } else {
-    const d=document.createElement('div'); d.innerHTML='<b>지원되지 않는 항목</b>'; player.appendChild(d);
+    const d=document.createElement('div'); d.innerHTML='<b>지원되지 않는 항목</b>'; $player.appendChild(d);
   }
 }
 
-onValue(ref(db, `rooms/${ROOM}/queue`), snapshot=>{
-  const list = snapshot.val() || {};
-  queue = Object.values(list).sort((a,b)=>a.ts-b.ts);
-  if(queue.length>0 && currentIndex===-1){ currentIndex=0; mountPlayer(queue[currentIndex]); }
+function playNext(){
+  if(currentIndex<queue.length-1){ currentIndex++; mountPlayer(queue[currentIndex]); }
+  else{ currentIndex=-1; document.getElementById('player').innerHTML=''; }
+}
+
+function removeVideo(id){
+  firebase.database().ref(`rooms/${ROOM}/queue/${id}`).remove();
+}
+
+// 구독
+firebase.database().ref(`rooms/${ROOM}/queue`).on('value', snap=>{
+  const val = snap.val()||{};
+  queue = Object.values(val);
+  if(currentIndex===-1 && queue.length>0){ currentIndex=0; mountPlayer(queue[0]); }
 });
 </script>
 </body>
