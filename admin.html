@@ -1,62 +1,53 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>영상 도네이션 • 관리자</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Kick Video Admin</title>
 <style>
-body { font-family:sans-serif; background:#0b0f14; color:#e6edf3; padding:20px; }
-table{ width:100%; border-collapse:collapse; }
-th, td{ padding:8px; border:1px solid #555; }
-button { padding:4px 8px; border:none; border-radius:6px; cursor:pointer; }
-.deleteBtn { background:#ef4444; color:white; }
+body{font-family:sans-serif;margin:20px;}
+.q-item{padding:8px;border:1px solid #ccc;margin-bottom:6px;}
+.btn{padding:4px 8px;margin-left:6px;cursor:pointer;}
 </style>
 </head>
 <body>
-<h2>관리자 페이지</h2>
-<table>
-<thead>
-<tr><th>닉네임</th><th>메시지</th><th>영상 URL</th><th>타입</th><th>삭제</th></tr>
-</thead>
-<tbody id="queueBody"></tbody>
-</table>
+<h1>Admin - 영상 대기열</h1>
+<button class="btn" id="clear-all">전체 초기화</button>
+<div id="admin-queue"></div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script>
+const ROOM="tobrothertoiden";
+const firebaseConfig={ apiKey:"AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8", authDomain:"toiden.firebaseapp.com", databaseURL:"https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app", projectId:"toiden", storageBucket:"toiden.firebasestorage.app", messagingSenderId:"696461176231", appId:"1:696461176231:web:2120f172e52eaba91a1a82" };
+firebase.initializeApp(firebaseConfig);
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
-  authDomain: "toiden.firebaseapp.com",
-  databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "toiden",
-  storageBucket: "toiden.appspot.com",
-  messagingSenderId: "696461176231",
-  appId: "1:696461176231:web:2120f172e52eaba91a1a82"
-};
+function removeVideo(id){
+  firebase.database().ref(`rooms/${ROOM}/queue/${id}`).remove();
+}
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const ROOM = "tobrothertoiden";
-const tbody = document.getElementById('queueBody');
-
-function deleteVideo(key){ set(ref(db, `rooms/${ROOM}/queue/${key}`), null); }
-
-onValue(ref(db, `rooms/${ROOM}/queue`), snapshot=>{
-  const list = snapshot.val() || {};
-  tbody.innerHTML='';
-  Object.entries(list).forEach(([key, item])=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=`
-      <td>${item.name}</td>
-      <td>${item.msg||''}</td>
-      <td><a href="${item.url}" target="_blank">${item.url}</a></td>
-      <td>${item.type}</td>
-      <td><button class="deleteBtn">삭제</button></td>
-    `;
-    tr.querySelector('.deleteBtn').addEventListener('click', ()=> deleteVideo(key));
-    tbody.appendChild(tr);
+function renderQueue(queue){
+  const $list = document.getElementById('admin-queue');
+  $list.innerHTML='';
+  queue.forEach(item=>{
+    const el=document.createElement('div');
+    el.className='q-item';
+    el.innerHTML=`${item.name} (${item.type}): ${item.url} ${item.msg? '<div>'+item.msg+'</div>':''} 
+      <button class="btn" onclick="removeVideo('${item.id}')">삭제</button>`;
+    $list.appendChild(el);
   });
+}
+
+document.getElementById('clear-all').addEventListener('click', ()=>{
+  if(confirm('전체 초기화하시겠습니까?')){
+    firebase.database().ref(`rooms/${ROOM}/queue`).set({});
+  }
+});
+
+firebase.database().ref(`rooms/${ROOM}/queue`).on('value',snap=>{
+  const val = snap.val()||{};
+  const arr = Object.values(val);
+  renderQueue(arr);
 });
 </script>
 </body>
