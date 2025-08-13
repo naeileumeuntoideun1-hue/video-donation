@@ -11,7 +11,7 @@
     display:flex; justify-content:center; align-items:center;
     background:transparent;
   }
-  #videoContainer iframe { max-width:100%; max-height:100%; }
+  #videoContainer iframe { max-width:100%; max-height:100%; border:none; }
 </style>
 </head>
 <body>
@@ -20,44 +20,56 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
-    authDomain: "toiden.firebaseapp.com",
-    databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "toiden",
-    storageBucket: "toiden.firebasestorage.app",
-    messagingSenderId: "696461176231",
-    appId: "1:696461176231:web:2120f172e52eaba91a1a82"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-  const roomRef = db.ref('rooms/tobrothertoiden');
+const firebaseConfig = {
+  apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
+  authDomain: "toiden.firebaseapp.com",
+  databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "toiden",
+  storageBucket: "toiden.firebasestorage.app",
+  messagingSenderId: "696461176231",
+  appId: "1:696461176231:web:2120f172e52eaba91a1a82"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const roomRef = db.ref('rooms/tobrothertoiden');
 
-  let currentKey = null;
+let currentKey = null;
 
-  // 현재 재생 항목 감지
-  roomRef.child('currentVideo').on('value', snap => {
-    const item = snap.val();
-    if (!item || item.key === currentKey) return;
-    currentKey = item.key;
+// 유튜브 링크에서 영상 ID 추출 (숏폼/롱폼 모두 지원)
+function getYouTubeID(url) {
+  let id = null;
+  try {
+    const shortMatch = url.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/);
+    const watchMatch = url.match(/[?&]v=([a-zA-Z0-9_-]+)/);
+    const youtuBeMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
+    if(shortMatch) id = shortMatch[1];
+    else if(watchMatch) id = watchMatch[1];
+    else if(youtuBeMatch) id = youtuBeMatch[1];
+  } catch(e){ id = null; }
+  return id;
+}
 
-    const container = document.getElementById('videoContainer');
-    container.innerHTML = '';
+// 현재 재생 중인 항목 감지
+roomRef.child('currentVideo').on('value', snap => {
+  const video = snap.val();
+  if(!video || video.url === currentKey) return;
+  currentKey = video.url;
 
-    if (item.type === 'youtube' && item.ytid) {
-      const iframe = document.createElement('iframe');
+  const container = document.getElementById('videoContainer');
+  container.innerHTML = '';
 
-      // 유튜브 nocookie 모드 + 자동재생 + 음소거 해제
-      // rel=0: 추천영상 제거, autoplay=1: 자동재생, mute=0: 음소거 해제
-      iframe.src = `https://www.youtube-nocookie.com/embed/${item.ytid}?autoplay=1&mute=0&rel=0&modestbranding=1&playsinline=1`;
-      iframe.allow = "autoplay; fullscreen; picture-in-picture";
-      iframe.style.maxWidth = '100%';
-      iframe.style.maxHeight = '100%';
-      iframe.frameBorder = 0;
-
-      container.appendChild(iframe);
-    }
-  });
+  if(video.type === 'youtube') {
+    const ytid = getYouTubeID(video.url);
+    if(!ytid) return; // 잘못된 링크면 재생 안함
+    const el = document.createElement('iframe');
+    el.src = `https://www.youtube-nocookie.com/embed/${ytid}?autoplay=1&mute=0&rel=0&modestbranding=1`;
+    el.allow = 'autoplay; fullscreen';
+    el.style.maxWidth = '100%';
+    el.style.maxHeight = '100%';
+    container.appendChild(el);
+  }
+  // 다른 타입은 무시
+});
 </script>
 </body>
 </html>
