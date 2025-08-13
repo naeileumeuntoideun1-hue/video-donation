@@ -5,46 +5,50 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>오버레이</title>
 <style>
-body,html{margin:0;padding:0;width:100%;height:100%;background:transparent;overflow:hidden;font-family:sans-serif;}
-#message{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:48px;color:#fff;text-align:center;display:none;}
+body,html{margin:0;padding:0;width:100%;height:100%;background:transparent;overflow:hidden;}
 #player{width:100%;height:100%;background:#000;}
 </style>
 </head>
 <body>
-<div id="message"></div>
 <div id="player"></div>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script>
-const firebaseConfig = {apiKey:"AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",authDomain:"toiden.firebaseapp.com",databaseURL:"https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",projectId:"toiden",storageBucket:"toiden.firebasestorage.app",messagingSenderId:"696461176231",appId:"1:696461176231:web:2120f172e52eaba91a1a82"};
+const firebaseConfig = {
+  apiKey:"AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
+  authDomain:"toiden.firebaseapp.com",
+  databaseURL:"https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"toiden",
+  storageBucket:"toiden.firebasestorage.app",
+  messagingSenderId:"696461176231",
+  appId:"1:696461176231:web:2120f172e52eaba91a1a82"
+};
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database().ref('rooms/tobrothertoiden/queue');
 
-const $msg = document.getElementById('message');
-const $player = document.getElementById('player');
-
-let queue=[], current=null;
+const $player=document.getElementById('player');
+let queue=[],current=null;
 
 function playNext(){
-  if(queue.length===0) { $player.innerHTML=''; $msg.style.display='none'; return; }
-  const item=queue.shift();
+  if(queue.length===0){ $player.innerHTML=''; current=null; return; }
+  const item = queue.shift();
   current=item;
-  $msg.textContent=item.msg||item.name+'님 영상';
-  $msg.style.display='block';
-  setTimeout(()=>{ mountVideo(item); $msg.style.display='none'; db.child(item.key).remove(); },5000);
+  mountVideo(item);
+  db.child(item.key).remove();
 }
 
 function mountVideo(item){
   $player.innerHTML='';
-  if(item.type==='youtube'&&item.ytid){
+  if(item.type==='youtube' && item.ytid){
     const iframe=document.createElement('iframe');
     iframe.width='100%'; iframe.height='100%';
     iframe.src='https://www.youtube.com/embed/'+item.ytid+'?autoplay=1&mute=0';
-    iframe.frameBorder='0'; iframe.allow='autoplay; encrypted-media';
+    iframe.frameBorder='0';
+    iframe.allow='autoplay; encrypted-media';
     $player.appendChild(iframe);
   }else if(item.type==='html5'){
     const v=document.createElement('video');
-    v.src=item.url; v.autoplay=true; v.controls=true; v.muted=false;
+    v.src=item.url; v.autoplay=true; v.controls=false; v.muted=false;
     v.style.width='100%'; v.style.height='100%'; v.playsInline=true;
     $player.appendChild(v);
   }else if(item.type==='twitch'){
