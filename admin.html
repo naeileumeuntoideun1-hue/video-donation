@@ -3,44 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Login</title>
+  <title>Admin Panel</title>
   <style>
-    body { font-family: sans-serif; text-align:center; margin-top:100px; }
-    input { padding:8px; font-size:16px; margin:5px; }
-    button { padding:8px 16px; font-size:16px; margin:5px; }
-    #adminContainer { display:none; margin-top:30px; }
+    body { font-family: sans-serif; text-align:center; margin-top:50px; }
     table { width:100%; border-collapse:collapse; margin-top:20px; }
     th, td { border:1px solid #ddd; padding:8px; }
     th { background:#f5f5f5; }
+    button { padding:5px 10px; }
   </style>
 </head>
 <body>
-  <div id="loginContainer">
-    <h2>관리자 로그인</h2>
-    <input type="password" id="adminPass" placeholder="비밀번호 입력">
-    <button id="loginBtn">로그인</button>
-    <p id="loginMsg" style="color:red;"></p>
-  </div>
-
-  <div id="adminContainer">
-    <h2>Admin Panel</h2>
-    <table id="queueTable">
-      <thead>
-        <tr>
-          <th>이름</th>
-          <th>URL</th>
-          <th>메시지</th>
-          <th>송출</th>
-          <th>삭제</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
+  <h2>Admin Panel</h2>
+  <table id="queueTable">
+    <thead>
+      <tr>
+        <th>이름</th>
+        <th>URL</th>
+        <th>메시지</th>
+        <th>송출</th>
+        <th>삭제</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getDatabase, ref, get, set, onValue, remove } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+import { getDatabase, ref, get, onValue, set, remove } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
@@ -56,77 +45,21 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const room = "tobrothertoiden";
 const tbody = document.querySelector("#queueTable tbody");
-const loginBtn = document.getElementById("loginBtn");
-const passInput = document.getElementById("adminPass");
-const loginMsg = document.getElementById("loginMsg");
-const loginContainer = document.getElementById("loginContainer");
-const adminContainer = document.getElementById("adminContainer");
-
-let userIP = "unknown";
-
-async function getUserIP() {
-  try {
-    const res = await fetch("https://api.ipify.org?format=json");
-    const data = await res.json();
-    return data.ip || "unknown";
-  } catch(e) { return "unknown"; }
-}
-
-// 로컬 잠금
-function setLocalLock(minutes=10) { localStorage.setItem("adminLock", Date.now()+minutes*60*1000); }
-function isLocalLocked() { const t=Number(localStorage.getItem("adminLock")||0); return t && Date.now()<t; }
-
-async function loginAdmin() {
-  loginMsg.textContent = "";
-
-  if(isLocalLocked()){ loginMsg.textContent="잠시 후 다시 시도하세요."; return; }
-
-  if(userIP==="unknown"){ userIP = await getUserIP(); }
-
-  const failRef = ref(db, `rooms/${room}/loginFail/${encodeURIComponent(userIP)}`);
-  const failSnap = await get(failRef);
-  const failData = failSnap.exists()?failSnap.val():{count:0,blockedUntil:0};
-  const now = Date.now();
-
-  if(failData.blockedUntil && now<failData.blockedUntil){
-    loginMsg.textContent="10분 후 다시 시도하세요.";
-    return;
-  }
-
-  const passSnap = await get(ref(db, `rooms/${room}/adminPass`));
-  const correctPass = passSnap.exists()?String(passSnap.val()):null;
-  if(!correctPass){ loginMsg.textContent="서버에 비밀번호가 설정되어 있지 않습니다."; return; }
-
-  const inputPass = passInput.value;
-  if(inputPass===correctPass){
-    await set(failRef,{count:0,blockedUntil:0});
-    loginContainer.style.display="none";
-    adminContainer.style.display="block";
-    initAdmin();
-  } else {
-    let newCount=(failData.count||0)+1;
-    let blockedUntil=failData.blockedUntil||0;
-    if(newCount>=5){ blockedUntil=now+10*60*1000; newCount=0; setLocalLock(10); alert("5회 실패로 10분간 차단됩니다."); }
-    await set(failRef,{count:newCount,blockedUntil});
-    loginMsg.textContent="비밀번호가 틀렸습니다.";
-  }
-}
-
-loginBtn.addEventListener("click", loginAdmin);
-passInput.addEventListener("keydown", e=>{ if(e.key==="Enter") loginAdmin(); });
 
 // 관리자 페이지 초기화
 function initAdmin(){
   const queueRef = ref(db, `rooms/${room}/queue`);
+  
+  // 큐 실시간 반영
   onValue(queueRef, snapshot=>{
-    const data = snapshot.val()||{};
-    tbody.innerHTML="";
-    Object.entries(data).forEach(([key,video])=>{
+    const data = snapshot.val() || {};
+    tbody.innerHTML = "";
+    Object.entries(data).forEach(([key, video])=>{
       const tr=document.createElement("tr");
       tr.innerHTML=`
-        <td>${video.name??""}</td>
+        <td>${video.name ?? ""}</td>
         <td><a href="${video.url}" target="_blank" rel="noopener">${video.url}</a></td>
-        <td>${video.msg??""}</td>
+        <td>${video.msg ?? ""}</td>
         <td><button data-key="${key}" class="playBtn">송출</button></td>
         <td><button data-key="${key}" class="delBtn">삭제</button></td>
       `;
@@ -134,31 +67,39 @@ function initAdmin(){
     });
   });
 
+  // 버튼 이벤트
   tbody.addEventListener("click", e=>{
-    const btn=e.target.closest("button"); if(!btn)return;
-    const key=btn.dataset.key; if(!key)return;
+    const btn = e.target.closest("button"); 
+    if(!btn) return;
+    const key = btn.dataset.key; 
+    if(!key) return;
 
     if(btn.classList.contains("playBtn")){
       get(ref(db, `rooms/${room}/queue/${key}`)).then(snap=>{
-        const video=snap.val();
+        const video = snap.val();
         if(video) set(ref(db, `rooms/${room}/currentVideo`), video);
       });
     }
 
     if(btn.classList.contains("delBtn")){
       get(ref(db, `rooms/${room}/queue/${key}`)).then(snap=>{
-        const video=snap.val();
+        const video = snap.val();
         if(video){
           remove(ref(db, `rooms/${room}/queue/${key}`));
           get(ref(db, `rooms/${room}/currentVideo`)).then(snapCur=>{
-            const current=snapCur.val();
-            if(current && current.url===video.url) remove(ref(db, `rooms/${room}/currentVideo`));
+            const current = snapCur.val();
+            if(current && current.url === video.url){
+              remove(ref(db, `rooms/${room}/currentVideo`));
+            }
           });
         }
       });
     }
   });
 }
+
+// 바로 관리자 페이지 초기화
+initAdmin();
 </script>
 </body>
 </html>
