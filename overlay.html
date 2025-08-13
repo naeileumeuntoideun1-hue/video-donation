@@ -5,110 +5,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Video Donation Overlay</title>
 <style>
-  html, body {
-    margin: 0; padding: 0;
-    width: 100%; height: 100%;
-    background: transparent;
-    overflow: hidden;
-    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, Helvetica, Arial;
-  }
-  #player { width: 100%; height: 100%; }
-  .toast {
-    position: absolute; top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(0,0,0,0.7); color: #fff;
-    padding: 20px 30px; border-radius: 15px;
-    font-size: 24px; text-align: center;
-    display: none;
-  }
+  body{margin:0;background:transparent;display:flex;align-items:center;justify-content:center;overflow:hidden;height:100vh;}
+  #player{width:100%;height:100%;position:relative;}
+  iframe, video{width:100%;height:100%;border:none;}
 </style>
 </head>
 <body>
 <div id="player"></div>
-<div class="toast" id="toast"></div>
-
 <script>
-const ROOM = new URLSearchParams(location.search).get('room') || 'default';
-let queue = [];
-let currentIndex = -1;
-
-const toastEl = document.getElementById('toast');
-const playerEl = document.getElementById('player');
-
-// Firebase 설정
-const firebaseConfig = {
-  apiKey: "AIzaSyBiDe-6X-nKUfAgwWWWriI2U9wpNpQ9hk8",
-  authDomain: "toiden.firebaseapp.com",
-  databaseURL: "https://toiden-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "toiden",
-  storageBucket: "toiden.firebasestorage.app",
-  messagingSenderId: "696461176231",
-  appId: "1:696461176231:web:2120f172e52eaba91a1a82"
-};
-
-firebase.initializeApp(firebaseConfig);
-const dbRef = firebase.database().ref(`rooms/${ROOM}/queue`);
-
-function escapeHtml(s){ return (s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
-
-function showToast(msg, duration=5000){
-  toastEl.textContent = msg;
-  toastEl.style.display = 'block';
-  setTimeout(()=>{ toastEl.style.display = 'none'; }, duration);
-}
-
-function mountPlayer(item){
-  playerEl.innerHTML = '';
-  if(!item) return;
-
-  if(item.type==='youtube' && item.ytid){
-    const iframe = document.createElement('iframe');
-    iframe.width='100%'; iframe.height='100%';
-    iframe.allow='autoplay; fullscreen';
-    iframe.src = `https://www.youtube.com/embed/${item.ytid}?autoplay=1&mute=0`;
-    iframe.frameBorder='0';
-    playerEl.appendChild(iframe);
-  } else if(item.type==='twitch'){
-    const iframe = document.createElement('iframe');
-    iframe.width='100%'; iframe.height='100%';
-    const clipId = new URL(item.url).pathname.split('/').pop();
-    iframe.src = `https://clips.twitch.tv/embed?clip=${encodeURIComponent(clipId)}&parent=${location.hostname}&autoplay=true`;
-    iframe.frameBorder='0';
-    playerEl.appendChild(iframe);
-  } else if(item.type==='html5'){
-    const v = document.createElement('video');
-    v.src = item.url; v.autoplay=true; v.controls=true; v.muted=false;
-    v.style.width='100%'; v.style.height='100%'; v.playsInline=true; 
-    playerEl.appendChild(v);
-  } else {
-    const d = document.createElement('div');
-    d.style.padding='20px';
-    d.innerHTML='<b>지원되지 않는 항목입니다.</b>';
-    playerEl.appendChild(d);
+window.addEventListener('message', e=>{
+  const msg = e.data;
+  if(msg.action==='play' && msg.item){
+    const item = msg.item;
+    const $player = document.getElementById('player');
+    $player.innerHTML='';
+    if(item.type==='youtube' && item.ytid){
+      const iframe=document.createElement('iframe');
+      iframe.src = `https://www.youtube.com/embed/${item.ytid}?autoplay=1&mute=0`;
+      iframe.allow='autoplay; encrypted-media';
+      $player.appendChild(iframe);
+    } else if(item.type==='html5'){
+      const v=document.createElement('video');
+      v.src=item.url; v.autoplay=true; v.controls=true; v.muted=false; v.playsInline=true;
+      $player.appendChild(v);
+    } else if(item.type==='twitch'){
+      const iframe=document.createElement('iframe');
+      const clipId = new URL(item.url).pathname.split('/').pop();
+      iframe.src = `https://clips.twitch.tv/embed?clip=${clipId}&parent=${location.hostname}&autoplay=true&muted=false`;
+      iframe.allow='autoplay';
+      $player.appendChild(iframe);
+    } else {
+      $player.textContent='지원되지 않는 영상입니다.';
+    }
   }
-}
-
-// Firebase 실시간 구독
-dbRef.on('value', snap=>{
-  const val = snap.val()||{};
-  queue = Object.entries(val).sort((a,b)=> (a[1].ts||0)-(b[1].ts||0)).map(e=> ({...e[1], key:e[0]}));
-  playNext();
 });
-
-function playNext(){
-  if(queue.length===0) { playerEl.innerHTML=''; return; }
-  const item = queue.shift();
-  showToast(`${escapeHtml(item.name)} 님 영상 도착!`, 5000);
-  setTimeout(()=>{
-    mountPlayer(item);
-    // 재생 후 Firebase에서 삭제
-    firebase.database().ref(`rooms/${ROOM}/queue/${item.key}`).remove();
-  }, 5000);
-}
 </script>
-
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </body>
 </html>
