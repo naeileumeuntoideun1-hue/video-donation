@@ -5,46 +5,39 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Overlay</title>
 <style>
-  body {
-    margin:0;
-    padding:0;
-    overflow:hidden;
-    background:transparent;
-  }
+  body { margin:0; padding:0; overflow:hidden; background:transparent; }
   #videoContainer {
-    width:100vw;
-    height:100vh;
-    display:flex;
-    justify-content:center;
-    align-items:center;
+    width:100vw; height:100vh;
+    display:flex; justify-content:center; align-items:center;
     background:transparent;
+    position: relative;
   }
-  #videoContainer iframe {
-    width:100%;
-    height:100%;
-    border:none;
-  }
+  #videoContainer iframe { max-width:100%; max-height:100%; border:none; }
 
-  /* 도네이션 메시지 스타일 */
-  #donationMessage {
+  /* 기부 메시지 스타일 */
+  #donateMessage {
     position: absolute;
-    bottom: 20px;
+    bottom: 10%;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0,0,0,0.6);
+    background: rgba(0,0,0,0.7);
     color: white;
     padding: 10px 20px;
     border-radius: 10px;
-    font-size: 18px;
+    font-size: 1.2em;
     max-width: 80%;
     text-align: center;
     white-space: pre-wrap;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
   }
 </style>
 </head>
 <body>
-<div id="videoContainer"></div>
-<div id="donationMessage" style="display:none;"></div>
+<div id="videoContainer">
+  <div id="donateMessage"></div>
+</div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -58,7 +51,6 @@ const firebaseConfig = {
   messagingSenderId: "696461176231",
   appId: "1:696461176231:web:2120f172e52eaba91a1a82"
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const roomRef = db.ref('rooms/tobrothertoiden');
@@ -79,14 +71,14 @@ function getYouTubeID(url) {
   return id;
 }
 
-// 현재 재생 중인 영상 감지
+// 현재 재생 중인 영상
 roomRef.child('currentVideo').on('value', snap => {
   const video = snap.val();
   if(!video || video.url === currentKey) return;
   currentKey = video.url;
 
   const container = document.getElementById('videoContainer');
-  container.innerHTML = '';
+  container.innerHTML = '<div id="donateMessage"></div>'; // 메시지 영역 유지
 
   if(video.type === 'youtube') {
     const ytid = getYouTubeID(video.url);
@@ -94,27 +86,23 @@ roomRef.child('currentVideo').on('value', snap => {
     const el = document.createElement('iframe');
     el.src = `https://www.youtube-nocookie.com/embed/${ytid}?autoplay=1&mute=0&rel=0&modestbranding=1`;
     el.allow = 'autoplay; fullscreen';
+    el.style.maxWidth = '100%';
+    el.style.maxHeight = '100%';
     container.appendChild(el);
-
-    // 6초 후 영상 제거
-    setTimeout(() => {
-      container.innerHTML = '';
-    }, 6000);
   }
 });
 
-// 도네이션 메시지 표시
-roomRef.child('donation').on('value', snap => {
-  const donation = snap.val();
-  if(!donation || !donation.name || !donation.message) return;
+// 기부 메시지 표시 (6초 후 자동 숨김)
+roomRef.child('donateMessage').on('value', snap => {
+  const msgData = snap.val();
+  if(!msgData || !msgData.name || !msgData.message) return;
 
-  const msgEl = document.getElementById('donationMessage');
-  msgEl.textContent = `${donation.name}: ${donation.message}`;
-  msgEl.style.display = 'block';
+  const donateBox = document.getElementById('donateMessage');
+  donateBox.textContent = `${msgData.name} : ${msgData.message}`;
+  donateBox.style.opacity = 1;
 
-  // 6초 후 자동 숨김
   setTimeout(() => {
-    msgEl.style.display = 'none';
+    donateBox.style.opacity = 0;
   }, 6000);
 });
 </script>
