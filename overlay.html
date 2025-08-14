@@ -10,39 +10,33 @@
     width:100vw; height:100vh;
     display:flex; justify-content:center; align-items:center;
     background:transparent;
-    position: relative; /* 추가: 메시지 오버레이 위해 */
+    position: relative;
   }
   #videoContainer iframe { max-width:100%; max-height:100%; border:none; }
 
-  /* 추가: 기부 메시지 스타일 */
-  #donationMessage {
+  /* 기부 메시지 스타일 */
+  #donateMessage {
     position: absolute;
     bottom: 10%;
     left: 50%;
     transform: translateX(-50%);
     background: rgba(0,0,0,0.7);
-    color: #fff;
+    color: white;
     padding: 10px 20px;
     border-radius: 10px;
     font-size: 1.2em;
     max-width: 80%;
     text-align: center;
-    display: none; /* 기본은 숨김 */
-    z-index: 10;
-    animation: fadeInOut 6s ease forwards;
-  }
-
-  @keyframes fadeInOut {
-    0% { opacity: 0; transform: translate(-50%, 20px); }
-    10% { opacity: 1; transform: translate(-50%, 0); }
-    90% { opacity: 1; transform: translate(-50%, 0); }
-    100% { opacity: 0; transform: translate(-50%, 20px); }
+    white-space: pre-wrap;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
   }
 </style>
 </head>
 <body>
 <div id="videoContainer">
-  <div id="donationMessage"></div> <!-- 추가: 기부 메시지 표시 영역 -->
+  <div id="donateMessage"></div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -77,14 +71,14 @@ function getYouTubeID(url) {
   return id;
 }
 
-// 현재 재생 중인 항목 감지
+// 현재 재생 중인 영상
 roomRef.child('currentVideo').on('value', snap => {
   const video = snap.val();
   if(!video || video.url === currentKey) return;
   currentKey = video.url;
 
   const container = document.getElementById('videoContainer');
-  container.innerHTML = '<div id="donationMessage"></div>'; // 메시지 영역 유지
+  container.innerHTML = '<div id="donateMessage"></div>'; // 메시지 영역 유지
 
   if(video.type === 'youtube') {
     const ytid = getYouTubeID(video.url);
@@ -98,17 +92,18 @@ roomRef.child('currentVideo').on('value', snap => {
   }
 });
 
-// 추가: 기부 메시지 실시간 표시
-roomRef.child('donations').on('child_added', snap => {
-  const donation = snap.val();
-  if(!donation || !donation.name || !donation.message) return;
+// 기부 메시지 표시 (6초 후 자동 숨김)
+roomRef.child('donateMessage').on('value', snap => {
+  const msgData = snap.val();
+  if(!msgData || !msgData.name || !msgData.message) return;
 
-  const msgBox = document.getElementById('donationMessage');
-  msgBox.innerHTML = `<strong>${donation.name}</strong> : ${donation.message}`;
-  msgBox.style.display = 'block';
-  msgBox.style.animation = 'none';
-  void msgBox.offsetWidth; // 애니메이션 리셋
-  msgBox.style.animation = 'fadeInOut 6s ease forwards';
+  const donateBox = document.getElementById('donateMessage');
+  donateBox.textContent = `${msgData.name} : ${msgData.message}`;
+  donateBox.style.opacity = 1;
+
+  setTimeout(() => {
+    donateBox.style.opacity = 0;
+  }, 6000);
 });
 </script>
 </body>
