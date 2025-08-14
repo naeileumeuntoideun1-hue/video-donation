@@ -5,13 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Overlay</title>
 <style>
-  body { margin:0; padding:0; overflow:hidden; background:transparent; }
-  #videoContainer {
-    width:100vw; height:100vh;
-    display:flex; justify-content:center; align-items:center;
+  body {
+    margin:0;
+    padding:0;
+    overflow:hidden;
     background:transparent;
   }
-  #videoContainer iframe { max-width:100%; max-height:100%; border:none; }
+  #videoContainer {
+    width:100vw;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:transparent;
+  }
+  #videoContainer iframe {
+    width:100%;
+    height:100%;
+    border:none;
+  }
 
   /* 도네이션 메시지 스타일 */
   #donationMessage {
@@ -46,6 +58,7 @@ const firebaseConfig = {
   messagingSenderId: "696461176231",
   appId: "1:696461176231:web:2120f172e52eaba91a1a82"
 };
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const roomRef = db.ref('rooms/tobrothertoiden');
@@ -81,9 +94,12 @@ roomRef.child('currentVideo').on('value', snap => {
     const el = document.createElement('iframe');
     el.src = `https://www.youtube-nocookie.com/embed/${ytid}?autoplay=1&mute=0&rel=0&modestbranding=1`;
     el.allow = 'autoplay; fullscreen';
-    el.style.maxWidth = '100%';
-    el.style.maxHeight = '100%';
     container.appendChild(el);
+
+    // 6초 후 영상 제거
+    setTimeout(() => {
+      container.innerHTML = '';
+    }, 6000);
   }
 });
 
