@@ -10,34 +10,29 @@
     width:100vw; height:100vh;
     display:flex; justify-content:center; align-items:center;
     background:transparent;
-    position: relative;
   }
   #videoContainer iframe { max-width:100%; max-height:100%; border:none; }
 
-  /* 기부 메시지 스타일 */
-  #donateMessage {
+  /* 도네이션 메시지 스타일 */
+  #donationMessage {
     position: absolute;
-    bottom: 10%;
+    bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0,0,0,0.7);
+    background: rgba(0,0,0,0.6);
     color: white;
     padding: 10px 20px;
     border-radius: 10px;
-    font-size: 1.2em;
+    font-size: 18px;
     max-width: 80%;
     text-align: center;
     white-space: pre-wrap;
-    opacity: 0;
-    transition: opacity 0.5s ease;
-    pointer-events: none;
   }
 </style>
 </head>
 <body>
-<div id="videoContainer">
-  <div id="donateMessage"></div>
-</div>
+<div id="videoContainer"></div>
+<div id="donationMessage" style="display:none;"></div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -71,14 +66,14 @@ function getYouTubeID(url) {
   return id;
 }
 
-// 현재 재생 중인 영상
+// 현재 재생 중인 영상 감지
 roomRef.child('currentVideo').on('value', snap => {
   const video = snap.val();
   if(!video || video.url === currentKey) return;
   currentKey = video.url;
 
   const container = document.getElementById('videoContainer');
-  container.innerHTML = '<div id="donateMessage"></div>'; // 메시지 영역 유지
+  container.innerHTML = '';
 
   if(video.type === 'youtube') {
     const ytid = getYouTubeID(video.url);
@@ -92,17 +87,18 @@ roomRef.child('currentVideo').on('value', snap => {
   }
 });
 
-// 기부 메시지 표시 (6초 후 자동 숨김)
-roomRef.child('donateMessage').on('value', snap => {
-  const msgData = snap.val();
-  if(!msgData || !msgData.name || !msgData.message) return;
+// 도네이션 메시지 표시
+roomRef.child('donation').on('value', snap => {
+  const donation = snap.val();
+  if(!donation || !donation.name || !donation.message) return;
 
-  const donateBox = document.getElementById('donateMessage');
-  donateBox.textContent = `${msgData.name} : ${msgData.message}`;
-  donateBox.style.opacity = 1;
+  const msgEl = document.getElementById('donationMessage');
+  msgEl.textContent = `${donation.name}: ${donation.message}`;
+  msgEl.style.display = 'block';
 
+  // 6초 후 자동 숨김
   setTimeout(() => {
-    donateBox.style.opacity = 0;
+    msgEl.style.display = 'none';
   }, 6000);
 });
 </script>
